@@ -1,0 +1,44 @@
+syntax = "proto3";
+
+// Shared transport envelope for all protobuf-based services.
+enum RpcService {
+    RPC_SERVICE_UNSPECIFIED = 0;
+    RPC_SERVICE_CRYPTO = 1;
+}
+
+// Status of the RPC Request returned via RPS Response.
+enum RpcStatus {
+    // Default value. Must be 0 in proto3.
+    RPC_STATUS_UNSPECIFIED = 0;
+    // Successfully routed and processed by the gateway/router layer
+    RPC_STATUS_OK = 1;
+    //Statuses for various failures in routing / receiving a response
+    RPC_STATUS_INVALID_REQUEST = 2;
+    RPC_STATUS_UNSUPPORTED_SCHEMA = 3;
+    RPC_STATUS_UNSUPPORTED_SERVICE = 4;
+    RPC_STATUS_MALFORMED_REQUEST = 5;
+    RPC_STATUS_INVALID_CONNECTION = 6;
+    RPC_STATUS_INTERNAL = 7;
+    RPC_STATUS_QUEUE_FULL = 8;
+}
+
+message RpcRequest {
+    uint64 request_id = 1;
+    RpcService service = 2;
+    uint32 schema_version = 3;
+    bytes payload = 4;
+}
+
+message RpcResponse {
+    uint64 request_id = 1;
+    RpcService service = 2;
+    uint32 schema_version = 3;
+    //RPC execution status.
+    RpcStatus status = 4;
+    // Valid only when status is RPC_STATUS_OK
+    bytes payload = 5;
+}
+
+message RpcHeartbeat {
+    uint64 timestamp_ms = 1;
+}

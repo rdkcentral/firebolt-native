@@ -18,8 +18,9 @@
 
 #pragma once
 
-#include "firebolt/IFireboltTransport.h"
+#include "firebolt/IFireboltTextTransport.h"
 
+#include <functional>
 #include <queue>
 #include <string>
 
@@ -32,16 +33,25 @@ namespace transport {
  * This transport uses an in-memory queue to simulate message passing.
  * It's intended as a simple example for partners to understand the transport pattern.
  */
-class ExampleTransport : public IFireboltTransport {
+class ExampleTransport : public IFireboltTextTransport {
 public:
     ExampleTransport() = default;
     ~ExampleTransport() override = default;
 
-    void send(const std::string& message) override;
-    std::string receive() override;
+    bool open() override;
+    bool isConnected() override;
+    void onConnectionStatusChanged(
+        std::function<void(bool connected, const std::string& errorInfo)> callback) override;
+    bool send(const std::string& message) override;
+    void onMessageReceived(
+        std::function<void(const std::string& message)> callback) override;
+    void disconnect() override;
 
 private:
     std::queue<std::string> m_messageQueue;
+    bool m_connected = false;
+    std::function<void(bool, const std::string&)> m_connectionCallback;
+    std::function<void(const std::string&)> m_messageCallback;
 };
 
 } // namespace transport

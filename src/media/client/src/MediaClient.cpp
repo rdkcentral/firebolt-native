@@ -21,7 +21,7 @@
 namespace firebolt {
 namespace media {
 
-MediaClient::MediaClient(std::shared_ptr<IFireboltTransport> transport)
+MediaClient::MediaClient(std::shared_ptr<IFireboltBufferTransport> transport)
     : m_transport(std::move(transport)) {
 }
 

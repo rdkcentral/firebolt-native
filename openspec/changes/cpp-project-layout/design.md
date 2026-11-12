@@ -4,6 +4,8 @@
 
 The firebolt-native repository is currently empty aside from OpenSpec configuration. The project needs to support multiple Firebolt surfaces (Core, Crypto, Media) with a flexible transport architecture. Each surface uses different protocols (JSON-RPC over WebSocket for Core, Protobuf over Unix Domain Socket for Crypto and Media). The build system must support Yocto builds with manual CMake find modules and out-of-tree builds.
 
+**Note:** The original design specified a single `IFireboltTransport` interface. This was later evolved in the `transport-interface-design` change to use dual interfaces (`IFireboltTextTransport` and `IFireboltBufferTransport`) to better match protocol requirements (text frames for WebSocket, binary for Protobuf). See the `transport-interface-design` change for details on this evolution.
+
 See proposal.md for motivation.
 
 ## Goals / Non-Goals

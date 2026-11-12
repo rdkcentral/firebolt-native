@@ -18,7 +18,7 @@
 
 #pragma once
 
-#include "firebolt/IFireboltTransport.h"
+#include "firebolt/IFireboltTextTransport.h"
 
 #include <memory>
 
@@ -27,11 +27,11 @@ namespace core {
 
 class CoreClient {
 public:
-    explicit CoreClient(std::shared_ptr<IFireboltTransport> transport);
+    explicit CoreClient(std::shared_ptr<IFireboltTextTransport> transport);
     ~CoreClient() = default;
 
 private:
-    std::shared_ptr<IFireboltTransport> m_transport;
+    std::shared_ptr<IFireboltTextTransport> m_transport;
 };
 
 } // namespace core

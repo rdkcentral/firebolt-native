@@ -17,6 +17,7 @@ add_subdirectory(src/media)
 
 # Transports
 add_subdirectory(transports/example)
+add_subdirectory(transports/secure)
 
 # Integration tests
 add_subdirectory(tests/integration)

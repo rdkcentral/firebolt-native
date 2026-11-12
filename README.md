@@ -16,7 +16,8 @@ firebolt-native/
 │
 ├── include/                                # Public headers
 │   └── firebolt/
-│       └── IFireboltTransport.h            # Transport interface
+│       ├── IFireboltTextTransport.h        # Text-based transport interface (WebSocket)
+│       └── IFireboltBufferTransport.h      # Buffer-based transport interface (Protobuf/UDS)
 │
 ├── src/
 │   ├── common/                             # Shared utilities
@@ -94,21 +95,36 @@ cmake --build /tmp/firebolt-build
 
 ## Transport Architecture
 
-The library uses runtime dependency injection for transports. Each surface client accepts an `IFireboltTransport` implementation:
+The library uses runtime dependency injection for transports with protocol-specific interfaces:
+
+- **IFireboltTextTransport**: For text-based protocols (e.g., WebSocket with JSON-RPC)
+- **IFireboltBufferTransport**: For buffer-based protocols (e.g., Protobuf over Unix Domain Socket)
+
+Each surface client accepts the appropriate transport interface:
 
 ```cpp
-#include "firebolt/IFireboltTransport.h"
+// Core uses text transport (WebSocket)
+#include "firebolt/IFireboltTextTransport.h"
 #include "firebolt/core/CoreClient.h"
 #include "firebolt/transport/ExampleTransport.h"
 
 auto transport = std::make_shared<firebolt::transport::ExampleTransport>();
 firebolt::core::CoreClient client(transport);
+
+// Crypto uses buffer transport (Protobuf/UDS)
+#include "firebolt/IFireboltBufferTransport.h"
+#include "firebolt/crypto/CryptoClient.h"
+#include "firebolt/transport/SecureTransport.h"
+
+auto secureTransport = std::make_shared<firebolt::transport::SecureTransport>();
+firebolt::crypto::CryptoClient cryptoClient(secureTransport);
 ```
 
 This enables:
 - Testability with mock transports
 - Partner extensibility with custom transports
 - Flexible protocol selection at runtime
+- Type-safe separation between text and binary protocols
 
 ## Adding a New Surface
 
@@ -149,7 +165,9 @@ To add a new surface:
 
 ## Implementing a Custom Transport
 
-To implement a custom transport:
+To implement a custom transport, choose the appropriate interface based on your protocol:
+
+### Text-Based Transport (WebSocket, JSON-RPC)
 
 1. Create the directory structure:
    ```
@@ -170,24 +188,56 @@ To implement a custom transport:
    )
    ```
 
-3. Inherit from `IFireboltTransport`:
+3. Inherit from `IFireboltTextTransport`:
    ```cpp
-   #include "firebolt/IFireboltTransport.h"
+   #include "firebolt/IFireboltTextTransport.h"
 
    namespace firebolt {
    namespace transport {
 
-   class CustomTransport : public IFireboltTransport {
+   class CustomTextTransport : public IFireboltTextTransport {
    public:
-       void send(const std::string& message) override;
-       std::string receive() override;
+       bool open() override;
+       bool isConnected() override;
+       void onConnectionStatusChanged(
+           std::function<void(bool, const std::string&)> callback) override;
+       bool send(const std::string& message) override;
+       void onMessageReceived(
+           std::function<void(const std::string&)> callback) override;
+       void disconnect() override;
    };
 
    } // namespace transport
    } // namespace firebolt
    ```
 
-4. Implement the send() and receive() methods according to your protocol.
+### Buffer-Based Transport (Protobuf, UDS)
+
+Follow the same structure but inherit from `IFireboltBufferTransport`:
+
+```cpp
+#include "firebolt/IFireboltBufferTransport.h"
+
+namespace firebolt {
+namespace transport {
+
+class CustomBufferTransport : public IFireboltBufferTransport {
+public:
+    bool open() override;
+    bool isConnected() override;
+    void onConnectionStatusChanged(
+        std::function<void(bool, const std::string&)> callback) override;
+    bool send(const std::vector<uint8_t>& data) override;
+    void onMessageReceived(
+        std::function<void(const std::vector<uint8_t>&)> callback) override;
+    void disconnect() override;
+};
+
+} // namespace transport
+} // namespace firebolt
+```
+
+4. Implement the methods according to your protocol.
 
 ## License
 
