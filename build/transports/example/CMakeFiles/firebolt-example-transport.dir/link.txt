@@ -1,0 +1,1 @@
+/usr/bin/c++  -arch arm64 -isysroot /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX27.2.sdk -dynamiclib -Wl,-headerpad_max_install_names -L/opt/homebrew/opt/openssl@3/lib -o libfirebolt-example-transport.dylib -install_name @rpath/libfirebolt-example-transport.dylib "CMakeFiles/firebolt-example-transport.dir/src/ExampleTransport.cpp.o"
