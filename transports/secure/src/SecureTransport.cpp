@@ -23,23 +23,28 @@
 namespace firebolt {
 namespace transport {
 
-// Static instance pointer for C callbacks
-SecureTransport* SecureTransport::s_instance = nullptr;
+// Static registry for C callbacks
+std::unordered_map<Client*, SecureTransport*> SecureTransport::s_instanceRegistry;
+std::mutex SecureTransport::s_registryMutex;
 
 SecureTransport::SecureTransport()
     : m_client(nullptr)
     , m_connected(false)
 {
-    s_instance = this;
 }
 
 SecureTransport::~SecureTransport() {
     disconnect();
-    s_instance = nullptr;
+
+    // Remove from registry if still present
+    std::lock_guard<std::mutex> lock(s_registryMutex);
+    if (m_client) {
+        s_instanceRegistry.erase(m_client);
+    }
 }
 
 bool SecureTransport::open() {
-    if (m_connected) {
+    if (m_connected.load()) {
         return true;
     }
 
@@ -74,7 +79,13 @@ bool SecureTransport::open() {
         }
     }
 
-    m_connected = true;
+    // Register this instance in the registry for callbacks
+    {
+        std::lock_guard<std::mutex> lock(s_registryMutex);
+        s_instanceRegistry[m_client] = this;
+    }
+
+    m_connected.store(true);
     if (m_connectionCallback) {
         m_connectionCallback(true, "");
     }
@@ -82,7 +93,7 @@ bool SecureTransport::open() {
 }
 
 bool SecureTransport::isConnected() {
-    return m_connected;
+    return m_connected.load();
 }
 
 void SecureTransport::onConnectionStatusChanged(
@@ -91,7 +102,7 @@ void SecureTransport::onConnectionStatusChanged(
 }
 
 bool SecureTransport::send(const std::vector<uint8_t>& data) {
-    if (!m_connected || !m_client) {
+    if (!m_connected.load() || !m_client) {
         return false;
     }
 
@@ -129,13 +140,13 @@ void SecureTransport::onMessageReceived(
     m_messageCallback = std::move(callback);
 
     // Register the notification handler with the C API
-    if (m_client && m_connected) {
+    if (m_client && m_connected.load()) {
         client_register_notifications(m_client, notificationHandler);
     }
 }
 
 void SecureTransport::disconnect() {
-    if (!m_client) {
+    if (!m_connected.load() || !m_client) {
         return;
     }
 
@@ -144,8 +155,15 @@ void SecureTransport::disconnect() {
 
     // Disconnect
     client_disconnect(m_client);
+
+    // Remove from registry
+    {
+        std::lock_guard<std::mutex> lock(s_registryMutex);
+        s_instanceRegistry.erase(m_client);
+    }
+
     m_client = nullptr;
-    m_connected = false;
+    m_connected.store(false);
 
     if (m_connectionCallback) {
         m_connectionCallback(false, "");
@@ -153,11 +171,14 @@ void SecureTransport::disconnect() {
 }
 
 // Static callback for connection events from C API
-void SecureTransport::connectionEventHandler(Client* /*client*/, ClientConnectionEvent event) {
-    if (!s_instance) {
+void SecureTransport::connectionEventHandler(Client* client, ClientConnectionEvent event) {
+    std::lock_guard<std::mutex> lock(s_registryMutex);
+    auto it = s_instanceRegistry.find(client);
+    if (it == s_instanceRegistry.end()) {
         return;
     }
 
+    SecureTransport* instance = it->second;
     bool connected = false;
     std::string errorInfo;
 
@@ -165,36 +186,40 @@ void SecureTransport::connectionEventHandler(Client* /*client*/, ClientConnectio
         case CLIENT_CONNECTION_LOST:
             connected = false;
             errorInfo = "Connection lost";
-            s_instance->m_connected = false;
+            instance->m_connected.store(false);
             break;
         case CLIENT_CONNECTION_RESTORED:
             connected = true;
             errorInfo = "";
-            s_instance->m_connected = true;
+            instance->m_connected.store(true);
             break;
         case CLIENT_CONNECTION_TERMINATED:
             connected = false;
             errorInfo = "Connection terminated due to auth failures";
-            s_instance->m_connected = false;
+            instance->m_connected.store(false);
             break;
         default:
             return;
     }
 
-    if (s_instance->m_connectionCallback) {
-        s_instance->m_connectionCallback(connected, errorInfo);
+    if (instance->m_connectionCallback) {
+        instance->m_connectionCallback(connected, errorInfo);
     }
 }
 
 // Static callback for notifications from C API
-void SecureTransport::notificationHandler(Client* /*client*/, uint8_t* notification_data, size_t notification_size) {
-    if (!s_instance || !notification_data || notification_size == 0) {
+void SecureTransport::notificationHandler(Client* client, uint8_t* notification_data, size_t notification_size) {
+    std::lock_guard<std::mutex> lock(s_registryMutex);
+    auto it = s_instanceRegistry.find(client);
+    if (it == s_instanceRegistry.end() || !notification_data || notification_size == 0) {
         return;
     }
 
-    if (s_instance->m_messageCallback) {
+    SecureTransport* instance = it->second;
+
+    if (instance->m_messageCallback) {
         std::vector<uint8_t> notification(notification_data, notification_data + notification_size);
-        s_instance->m_messageCallback(notification);
+        instance->m_messageCallback(notification);
     }
 
     // Free the notification data (ownership was transferred to us)

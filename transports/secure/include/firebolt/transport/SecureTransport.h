@@ -25,6 +25,9 @@
 #include <memory>
 #include <vector>
 #include <cstdint>
+#include <atomic>
+#include <unordered_map>
+#include <mutex>
 
 namespace firebolt {
 namespace transport {
@@ -66,14 +69,15 @@ private:
     // Notification handler callback for C API
     static void notificationHandler(Client* client, uint8_t* notification_data, size_t notification_size);
 
-    // Static pointer to instance for C callbacks
-    static SecureTransport* s_instance;
+    // Registry mapping Client* to SecureTransport instances for C callbacks
+    static std::unordered_map<Client*, SecureTransport*> s_instanceRegistry;
+    static std::mutex s_registryMutex;
 
     // C API client handle
     Client* m_client;
 
-    // Connection state
-    bool m_connected;
+    // Connection state (atomic for thread safety)
+    std::atomic<bool> m_connected;
 
     // C++ callbacks
     std::function<void(bool, const std::string&)> m_connectionCallback;
