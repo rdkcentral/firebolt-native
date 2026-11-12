@@ -47,6 +47,7 @@ bool ExampleTransport::send(const std::string& message) {
     // Simulate receiving a message by calling the callback
     if (m_messageCallback && !m_messageQueue.empty()) {
         std::string msg = m_messageQueue.front();
+        m_messageQueue.pop();
         m_messageCallback(msg);
     }
     

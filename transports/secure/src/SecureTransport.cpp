@@ -43,6 +43,13 @@ bool SecureTransport::open() {
         return true;
     }
 
+    if (m_client) {
+        client_unregister_notifications(m_client);
+        client_disconnect(m_client);
+        m_client = nullptr;
+        m_connected = false;
+    }
+
     ClientResult result = client_connect(&m_client, connectionEventHandler);
     if (result != CLIENT_OK) {
         if (m_connectionCallback) {
@@ -50,6 +57,21 @@ bool SecureTransport::open() {
             m_connectionCallback(false, errorInfo);
         }
         return false;
+    }
+
+    if (m_messageCallback) {
+        result = client_register_notifications(m_client, notificationHandler);
+        if (result != CLIENT_OK) {
+            client_unregister_notifications(m_client);
+            client_disconnect(m_client);
+            m_client = nullptr;
+            m_connected = false;
+            if (m_connectionCallback) {
+                std::string errorInfo = "Failed to register notifications: error code " + std::to_string(result);
+                m_connectionCallback(false, errorInfo);
+            }
+            return false;
+        }
     }
 
     m_connected = true;
@@ -113,7 +135,7 @@ void SecureTransport::onMessageReceived(
 }
 
 void SecureTransport::disconnect() {
-    if (!m_connected || !m_client) {
+    if (!m_client) {
         return;
     }
 
