@@ -1,0 +1,18 @@
+syntax = "proto3";
+
+// JSON-RPC request and response messages for core API envelope.
+// These messages wrap JSON-RPC method calls and results in Protobuf format.
+
+message CoreRequest {
+    int32 id = 1;
+    string method = 2;
+    string params = 3;
+}
+
+message CoreResponse {
+    int32 id = 1;
+    string method = 2;
+    string result = 3;
+    string error = 4;
+    string params = 5;
+}
