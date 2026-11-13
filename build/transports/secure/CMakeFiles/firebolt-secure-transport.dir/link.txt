@@ -1,2 +1,0 @@
-/usr/bin/ar qc libfirebolt-secure-transport.a "CMakeFiles/firebolt-secure-transport.dir/src/SecureTransport.cpp.o"
-/usr/bin/ranlib libfirebolt-secure-transport.a

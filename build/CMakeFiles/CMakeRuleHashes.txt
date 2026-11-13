@@ -1,3 +1,0 @@
-# Hashes of file build rules.
-abaa8c1dcb0b487081764cb2e1b44d86 src/proto/core.pb.h
-c4e54172ddeb0b26f08812dd3ce6cdb8 src/proto/rpc.pb.h

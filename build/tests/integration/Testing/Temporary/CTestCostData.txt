@@ -1,3 +1,0 @@
-test_core_lifecycle 3 0.335374
-test_secure_lifecycle 3 0.140505
----

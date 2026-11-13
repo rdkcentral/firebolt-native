@@ -1,1 +1,0 @@
-/usr/bin/c++  -arch arm64 -isysroot /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX27.2.sdk -dynamiclib -Wl,-headerpad_max_install_names -L/opt/homebrew/opt/openssl@3/lib -o libfirebolt-crypto-client.dylib -install_name @rpath/libfirebolt-crypto-client.dylib "CMakeFiles/firebolt-crypto-client.dir/src/CryptoClient.cpp.o"
