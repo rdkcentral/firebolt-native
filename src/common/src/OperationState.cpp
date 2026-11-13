@@ -28,8 +28,21 @@ OperationState::OperationState(uint64_t requestId)
 }
 
 void OperationState::OnComplete(std::function<void(const std::string&)> callback) {
-    std::lock_guard<std::mutex> lock(m_mutex);
-    m_callback = callback;
+    std::string response;
+    {
+        std::lock_guard<std::mutex> lock(m_mutex);
+        if (!m_completed.load()) {
+            m_callback = callback;
+            return;
+        }
+        if (m_cancelled.load()) {
+            return;
+        }
+        response = m_response;
+    }
+    if (callback) {
+        callback(response);
+    }
 }
 
 bool OperationState::IsCompleted() const {
@@ -37,11 +50,14 @@ bool OperationState::IsCompleted() const {
 }
 
 bool OperationState::Cancel() {
-    if (m_completed.load()) {
-        return false;
+    {
+        std::lock_guard<std::mutex> lock(m_mutex);
+        if (m_completed.load()) {
+            return false;
+        }
+        m_cancelled = true;
+        m_completed = true;
     }
-    m_cancelled = true;
-    m_completed = true;
     m_cv.notify_all();
     return true;
 }
@@ -59,6 +75,7 @@ std::string OperationState::Get(std::chrono::milliseconds timeout) {
 }
 
 void OperationState::Complete(const std::string& response) {
+    std::function<void(const std::string&)> callback;
     {
         std::lock_guard<std::mutex> lock(m_mutex);
         if (m_cancelled.load()) {
@@ -66,11 +83,12 @@ void OperationState::Complete(const std::string& response) {
         }
         m_response = response;
         m_completed = true;
+        callback = m_callback;
     }
     m_cv.notify_all();
 
-    if (m_callback) {
-        m_callback(response);
+    if (callback) {
+        callback(response);
     }
 }
 

@@ -48,8 +48,21 @@ public:
     FireboltSubscription& operator=(const FireboltSubscription&) = delete;
 
     // Enable move
-    FireboltSubscription(FireboltSubscription&&) noexcept = default;
-    FireboltSubscription& operator=(FireboltSubscription&&) noexcept = default;
+    FireboltSubscription(FireboltSubscription&& other) noexcept
+        : m_state(other.m_state) {
+        other.m_state = nullptr;
+    }
+
+    FireboltSubscription& operator=(FireboltSubscription&& other) noexcept {
+        if (this != &other) {
+            if (m_state) {
+                m_state->Unsubscribe();
+            }
+            m_state = other.m_state;
+            other.m_state = nullptr;
+        }
+        return *this;
+    }
 
     /**
      * @brief Checks if the subscription is valid

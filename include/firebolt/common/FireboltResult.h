@@ -20,6 +20,7 @@
 
 #include <string>
 #include <optional>
+#include <stdexcept>
 
 namespace firebolt {
 namespace common {

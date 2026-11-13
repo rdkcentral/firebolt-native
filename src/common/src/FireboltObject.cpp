@@ -21,7 +21,7 @@
 namespace firebolt {
 namespace common {
 
-FireboltObject::FireboltObject() = default;
+FireboltObject::FireboltObject() : m_json(nlohmann::json::object()) {}
 
 std::string FireboltObject::toString() const {
     return m_json.dump();

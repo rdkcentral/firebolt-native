@@ -34,22 +34,26 @@ namespace common {
  */
 template<typename T>
 FireboltResult<T> ParseJsonRpcResult(const std::string& jsonRpc) {
-    FireboltObject envelope;
-    envelope.fromString(jsonRpc);
+    try {
+        FireboltObject envelope;
+        envelope.fromString(jsonRpc);
 
-    if (envelope.has("error")) {
-        FireboltObject error = envelope.getObject("error");
-        return FireboltResult<T>::Failure(
-            error.has("message") ? error.get<std::string>("message") : "Unknown error");
+        if (envelope.has("error")) {
+            FireboltObject error = envelope.getObject("error");
+            return FireboltResult<T>::Failure(
+                error.has("message") ? error.get<std::string>("message") : "Unknown error");
+        }
+
+        if (!envelope.has("result")) {
+            return FireboltResult<T>::Failure("Response has no result");
+        }
+
+        T model;
+        model.fromObject(envelope.getObject("result"));
+        return FireboltResult<T>::Success(model);
+    } catch (const std::exception& error) {
+        return FireboltResult<T>::Failure(error.what());
     }
-
-    if (!envelope.has("result")) {
-        return FireboltResult<T>::Failure("Response has no result");
-    }
-
-    T model;
-    model.fromObject(envelope.getObject("result"));
-    return FireboltResult<T>::Success(model);
 }
 
 } // namespace common

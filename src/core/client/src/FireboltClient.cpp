@@ -45,21 +45,25 @@ void FireboltClient::OnTransportMessage(const std::string& message) {
         if (json.contains("id")) {
             uint64_t id = json["id"];
             
-            std::lock_guard<std::mutex> lock(m_mutex);
-            
-            // Check for operation response
-            auto reqIt = m_pendingRequests.find(id);
-            if (reqIt != m_pendingRequests.end()) {
-                auto* state = reqIt->second;
-                m_pendingRequests.erase(reqIt);
-                state->Complete(message);
+            IOperationState* operation = nullptr;
+            ISubscriptionState* subscription = nullptr;
+            {
+                std::lock_guard<std::mutex> lock(m_mutex);
+                auto reqIt = m_pendingRequests.find(id);
+                if (reqIt != m_pendingRequests.end()) {
+                    operation = reqIt->second;
+                    m_pendingRequests.erase(reqIt);
+                }
+                auto subIt = m_subscriptions.find(id);
+                if (subIt != m_subscriptions.end()) {
+                    subscription = subIt->second;
+                }
             }
-            
-            // Check for event notification
-            auto subIt = m_subscriptions.find(id);
-            if (subIt != m_subscriptions.end()) {
-                auto* state = subIt->second;
-                state->DeliverEvent(message);
+            if (operation) {
+                operation->Complete(message);
+            }
+            if (subscription) {
+                subscription->DeliverEvent(message);
             }
         }
     } catch (const std::exception& e) {
