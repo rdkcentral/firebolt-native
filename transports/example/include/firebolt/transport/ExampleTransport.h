@@ -47,6 +47,12 @@ public:
         std::function<void(const std::string& message)> callback) override;
     void disconnect() override;
 
+    /**
+     * @brief Injects a test message to be delivered as if received from the transport
+     * Used for testing event delivery with different message formats
+     */
+    void InjectMessage(const std::string& message);
+
 private:
     std::queue<std::string> m_messageQueue;
     bool m_connected = false;

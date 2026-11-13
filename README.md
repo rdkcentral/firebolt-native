@@ -18,6 +18,8 @@ firebolt-native/
 │   └── firebolt/
 │       ├── IFireboltTextTransport.h        # Text-based transport interface (WebSocket)
 │       └── IFireboltBufferTransport.h      # Buffer-based transport interface (Protobuf/UDS)
+│       ├── IFireboltTextTransport.h        # Text-based transport interface (WebSocket)
+│       └── IFireboltBufferTransport.h      # Buffer-based transport interface (Protobuf/UDS)
 │
 ├── src/
 │   ├── common/                             # Shared utilities
@@ -69,6 +71,7 @@ firebolt-native/
 
 - CMake 3.15 or higher
 - C++17 compatible compiler
+- Protobuf (found via `find_package(Protobuf REQUIRED)`). Tested with 7.36.2 from Homebrew. No minimum version is enforced yet.
 
 ### Building
 
@@ -83,6 +86,20 @@ cmake --build build
 cmake --build build --clean-first
 ```
 
+### Building Libraries
+
+The three client libraries can be built on their own:
+
+```bash
+cmake --build build --target firebolt-common firebolt-core-client firebolt-secure-client
+```
+
+Outputs (`.dylib` on macOS, `.so` on Linux):
+
+- `build/src/common/libfirebolt-common`
+- `build/src/core/client/libfirebolt-core-client`
+- `build/src/secure/core/client/libfirebolt-secure-client`
+
 ### Out-of-tree Build
 
 The project supports out-of-tree builds:
@@ -93,8 +110,44 @@ cmake -S /path/to/firebolt-native -B /tmp/firebolt-build
 cmake --build /tmp/firebolt-build
 ```
 
+### Running Tests
+
+Tests use GoogleTest. If it is not installed, CMake skips them with a "GTest not found" message
+and ctest reports no tests. On macOS, install it with `brew install googletest`.
+
+Run the tests with the helper script, which configures, builds, and runs ctest:
+
+```bash
+scripts/run-tests.sh                        # all tests
+scripts/run-tests.sh unit                   # unit tests only
+scripts/run-tests.sh integration            # integration tests only
+scripts/run-tests.sh all out-dir            # use another build directory (default: build)
+```
+
+The second argument is the build directory, relative to the repository root, and works with every suite.
+The script stops at the first failed build step and exits non-zero if any test fails.
+
+| Suite       | Tests                                          |
+|-------------|------------------------------------------------|
+| unit        | `test_secure_client`                           |
+| integration | `test_core_lifecycle`, `test_secure_lifecycle` |
+
+To run ctest directly, build first and then run it against the build directory:
+
+```bash
+cmake -S . -B build
+cmake --build build
+ctest --test-dir build --output-on-failure
+```
+
 ## Transport Architecture
 
+The library uses runtime dependency injection for transports with protocol-specific interfaces:
+
+- **IFireboltTextTransport**: For text-based protocols (e.g., WebSocket with JSON-RPC)
+- **IFireboltBufferTransport**: For buffer-based protocols (e.g., Protobuf over Unix Domain Socket)
+
+Each surface client accepts the appropriate transport interface:
 The library uses runtime dependency injection for transports with protocol-specific interfaces:
 
 - **IFireboltTextTransport**: For text-based protocols (e.g., WebSocket with JSON-RPC)
@@ -105,25 +158,25 @@ Each surface client accepts the appropriate transport interface:
 ```cpp
 // Core uses text transport (WebSocket)
 #include "firebolt/IFireboltTextTransport.h"
-#include "firebolt/core/CoreClient.h"
+#include "firebolt/core/FireboltClient.h"
 #include "firebolt/transport/ExampleTransport.h"
 
 auto transport = std::make_shared<firebolt::transport::ExampleTransport>();
-firebolt::core::CoreClient client(transport);
+firebolt::core::FireboltClient client(transport);
 
-// Crypto uses buffer transport (Protobuf/UDS)
+// Secure path uses buffer transport (Protobuf envelopes over UDS)
 #include "firebolt/IFireboltBufferTransport.h"
-#include "firebolt/crypto/CryptoClient.h"
-#include "firebolt/transport/SecureTransport.h"
+#include "firebolt/secure/core/FireboltSecureClient.h"
 
-auto secureTransport = std::make_shared<firebolt::transport::SecureTransport>();
-firebolt::crypto::CryptoClient cryptoClient(secureTransport);
+std::shared_ptr<firebolt::IFireboltBufferTransport> secureTransport = MakeBufferTransport();
+firebolt::secure::core::FireboltSecureClient secureClient(secureTransport);
 ```
 
 This enables:
 - Testability with mock transports
 - Partner extensibility with custom transports
 - Flexible protocol selection at runtime
+- Type-safe separation between text and binary protocols
 - Type-safe separation between text and binary protocols
 
 ## Adding a New Surface
@@ -168,6 +221,9 @@ To add a new surface:
 To implement a custom transport, choose the appropriate interface based on your protocol:
 
 ### Text-Based Transport (WebSocket, JSON-RPC)
+To implement a custom transport, choose the appropriate interface based on your protocol:
+
+### Text-Based Transport (WebSocket, JSON-RPC)
 
 1. Create the directory structure:
    ```
@@ -189,7 +245,9 @@ To implement a custom transport, choose the appropriate interface based on your 
    ```
 
 3. Inherit from `IFireboltTextTransport`:
+3. Inherit from `IFireboltTextTransport`:
    ```cpp
+   #include "firebolt/IFireboltTextTransport.h"
    #include "firebolt/IFireboltTextTransport.h"
 
    namespace firebolt {
@@ -205,12 +263,47 @@ To implement a custom transport, choose the appropriate interface based on your 
        void onMessageReceived(
            std::function<void(const std::string&)> callback) override;
        void disconnect() override;
+       bool open() override;
+       bool isConnected() override;
+       void onConnectionStatusChanged(
+           std::function<void(bool, const std::string&)> callback) override;
+       bool send(const std::string& message) override;
+       void onMessageReceived(
+           std::function<void(const std::string&)> callback) override;
+       void disconnect() override;
    };
 
    } // namespace transport
    } // namespace firebolt
    ```
 
+### Buffer-Based Transport (Protobuf, UDS)
+
+Follow the same structure but inherit from `IFireboltBufferTransport`:
+
+```cpp
+#include "firebolt/IFireboltBufferTransport.h"
+
+namespace firebolt {
+namespace transport {
+
+class CustomBufferTransport : public IFireboltBufferTransport {
+public:
+    bool open() override;
+    bool isConnected() override;
+    void onConnectionStatusChanged(
+        std::function<void(bool, const std::string&)> callback) override;
+    bool send(const std::vector<uint8_t>& data) override;
+    void onMessageReceived(
+        std::function<void(const std::vector<uint8_t>&)> callback) override;
+    void disconnect() override;
+};
+
+} // namespace transport
+} // namespace firebolt
+```
+
+4. Implement the methods according to your protocol.
 ### Buffer-Based Transport (Protobuf, UDS)
 
 Follow the same structure but inherit from `IFireboltBufferTransport`:

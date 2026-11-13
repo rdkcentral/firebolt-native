@@ -1,0 +1,23 @@
+# Build directories
+build/
+cmake-build-*/
+
+# Generated protobuf source files (.pb.cc)
+src/proto/generated/
+
+# CMake cache
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+Makefile
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Ignored generated protobuf headers
+include/firebolt/proto/
