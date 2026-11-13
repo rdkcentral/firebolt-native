@@ -51,6 +51,10 @@ bool SecureTransport::open() {
     if (m_client) {
         client_unregister_notifications(m_client);
         client_disconnect(m_client);
+        {
+            std::lock_guard<std::mutex> lock(s_registryMutex);
+            s_instanceRegistry.erase(m_client);
+        }
         m_client = nullptr;
         m_connected = false;
     }
@@ -64,11 +68,21 @@ bool SecureTransport::open() {
         return false;
     }
 
+    // Register this instance before enabling notifications
+    {
+        std::lock_guard<std::mutex> lock(s_registryMutex);
+        s_instanceRegistry[m_client] = this;
+    }
+
     if (m_messageCallback) {
         result = client_register_notifications(m_client, notificationHandler);
         if (result != CLIENT_OK) {
             client_unregister_notifications(m_client);
             client_disconnect(m_client);
+            {
+                std::lock_guard<std::mutex> lock(s_registryMutex);
+                s_instanceRegistry.erase(m_client);
+            }
             m_client = nullptr;
             m_connected = false;
             if (m_connectionCallback) {
@@ -77,12 +91,6 @@ bool SecureTransport::open() {
             }
             return false;
         }
-    }
-
-    // Register this instance in the registry for callbacks
-    {
-        std::lock_guard<std::mutex> lock(s_registryMutex);
-        s_instanceRegistry[m_client] = this;
     }
 
     m_connected.store(true);
@@ -212,6 +220,7 @@ void SecureTransport::notificationHandler(Client* client, uint8_t* notification_
     std::lock_guard<std::mutex> lock(s_registryMutex);
     auto it = s_instanceRegistry.find(client);
     if (it == s_instanceRegistry.end() || !notification_data || notification_size == 0) {
+        client_free_response(notification_data);
         return;
     }
 
