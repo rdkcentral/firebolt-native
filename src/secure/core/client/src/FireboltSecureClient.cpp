@@ -25,13 +25,23 @@ namespace firebolt {
 namespace secure {
 namespace core {
 
+void SecureMessageCallbackWrapper::OnMessageReceived(const std::vector<uint8_t>& data) {
+    // Safe to access m_client: if it was destroyed, m_isShutdown will prevent access to stale state
+    if (m_client) {
+        m_client->OnTransportMessage(data);
+    }
+}
+
 FireboltSecureClient::FireboltSecureClient(std::shared_ptr<IFireboltBufferTransport> transport)
     : m_transport(transport)
     , m_nextRequestId(1)
     , m_isShutdown(false) {
 
-    m_transport->onMessageReceived([this](const std::vector<uint8_t>& data) {
-        OnTransportMessage(data);
+    // Register transport callback with lifetime-safe wrapper
+    // Create a shared_ptr to a wrapper object that handles the callback safely
+    auto callbackWrapper = std::make_shared<SecureMessageCallbackWrapper>(this);
+    m_transport->onMessageReceived([callbackWrapper](const std::vector<uint8_t>& data) {
+        callbackWrapper->OnMessageReceived(data);
     });
 }
 

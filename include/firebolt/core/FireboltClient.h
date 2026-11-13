@@ -30,6 +30,7 @@
 #include <functional>
 #include <unordered_map>
 #include <mutex>
+#include <typeindex>
 
 namespace firebolt {
 namespace core {
@@ -43,6 +44,28 @@ using common::ISubscriptionState;
 // Forward declaration for generated interfaces
 template<typename T>
 using EventCallback = std::function<void(const T&)>;
+
+// Forward declaration for wrapper
+class FireboltClient;
+
+/**
+ * @brief Lifetime-safe wrapper for transport message callbacks
+ *
+ * Holds a raw pointer to the client and safely handles the case where
+ * the client is destroyed before a callback is invoked. The wrapper itself
+ * is held by shared_ptr in the callback, so it outlives the client if needed.
+ */
+class MessageCallbackWrapper {
+public:
+    explicit MessageCallbackWrapper(FireboltClient* client)
+        : m_client(client) {
+    }
+    
+    void OnMessageReceived(const std::string& message);
+
+private:
+    FireboltClient* m_client;  // Raw pointer; safe because we check m_isShutdown
+};
 
 /**
  * @brief FireboltClient for text-based JSON-RPC over WebSocket
@@ -97,6 +120,8 @@ public:
     T& GetInterface();
 
 private:
+    friend class MessageCallbackWrapper;
+    
     void OnTransportMessage(const std::string& message);
     std::string BuildJsonRpcRequest(uint64_t requestId, const std::string& method, const std::string& paramsJson);
 
@@ -105,6 +130,11 @@ private:
     std::unordered_map<uint64_t, std::shared_ptr<IOperationState>> m_pendingRequests;
     std::unordered_map<uint64_t, std::shared_ptr<ISubscriptionState>> m_subscriptions;
     std::unordered_map<uint64_t, EventCallback<std::string>> m_eventCallbacks;
+    
+    // Per-client interface registry using type_index as key and shared_ptr for lifetime management
+    // Maps type_index to a shared_ptr that deletes the interface instance
+    std::unordered_map<std::type_index, std::shared_ptr<void>> m_interfaceRegistry;
+    
     std::mutex m_mutex;
     bool m_isShutdown = false;
 };
@@ -123,10 +153,32 @@ FireboltOperation<T> FireboltClient::Send(const std::string& method, const Fireb
         m_pendingRequests[requestId] = state;
     }
 
+    // Open transport if disconnected
+    if (!m_transport->isConnected()) {
+        if (!m_transport->open()) {
+            // Connection failed - complete operation with error and remove from map
+            std::string errorJson = R"({"error":{"message":"Failed to connect transport"}})";
+            state->Complete(errorJson);
+            {
+                std::lock_guard<std::mutex> lock(m_mutex);
+                m_pendingRequests.erase(requestId);
+            }
+            return FireboltOperation<T>(state);
+        }
+    }
+
     // Build and send JSON-RPC request via transport (outside lock to allow concurrent operations)
     std::string paramsJson = params.toString();
     std::string requestJson = BuildJsonRpcRequest(requestId, method, paramsJson);
-    m_transport->send(requestJson);
+    if (!m_transport->send(requestJson)) {
+        // Send failed - complete operation with error and remove from map
+        std::string errorJson = R"({"error":{"message":"Failed to send request"}})";
+        state->Complete(errorJson);
+        {
+            std::lock_guard<std::mutex> lock(m_mutex);
+            m_pendingRequests.erase(requestId);
+        }
+    }
 
     // Return wrapper - state ownership shared between map and operation handle
     return FireboltOperation<T>(state);
@@ -145,7 +197,7 @@ FireboltSubscription FireboltClient::Subscribe(const std::string& event, EventCa
         m_subscriptions[subscriptionId] = state;
     }
 
-    // Register event callback that removes subscription from map when unsubscribed
+    // Register event callback using ParseJsonRpcResult - silently ignores subscription ACKs
     state->OnEvent([listener](const std::string& eventJson) {
         auto parsed = common::ParseJsonRpcResult<T>(eventJson);
         if (parsed.IsSuccess()) {
@@ -153,9 +205,29 @@ FireboltSubscription FireboltClient::Subscribe(const std::string& event, EventCa
         }
     });
 
+    // Open transport if disconnected
+    if (!m_transport->isConnected()) {
+        if (!m_transport->open()) {
+            // Connection failed - deactivate subscription and remove from map
+            state->Unsubscribe();
+            {
+                std::lock_guard<std::mutex> lock(m_mutex);
+                m_subscriptions.erase(subscriptionId);
+            }
+            return FireboltSubscription(state);
+        }
+    }
+
     // Send subscription request (outside lock to allow concurrent operations)
     std::string requestJson = BuildJsonRpcRequest(subscriptionId, event, "{}");
-    m_transport->send(requestJson);
+    if (!m_transport->send(requestJson)) {
+        // Send failed - deactivate subscription and remove from map
+        state->Unsubscribe();
+        {
+            std::lock_guard<std::mutex> lock(m_mutex);
+            m_subscriptions.erase(subscriptionId);
+        }
+    }
 
     // Return wrapper - state ownership shared between map and subscription handle
     return FireboltSubscription(state);
@@ -163,9 +235,26 @@ FireboltSubscription FireboltClient::Subscribe(const std::string& event, EventCa
 
 template<typename T>
 T& FireboltClient::GetInterface() {
-    // TODO: Implement interface registry
-    static T instance(*this);
-    return instance;
+    std::lock_guard<std::mutex> lock(m_mutex);
+    
+    std::type_index typeIdx(typeid(T));
+    auto it = m_interfaceRegistry.find(typeIdx);
+    
+    if (it != m_interfaceRegistry.end()) {
+        // Return existing interface for this client
+        return *static_cast<T*>(it->second.get());
+    }
+    
+    // Create new interface instance for this client and cache it with type-specific deleter
+    T* instance = new T(*this);
+    
+    // Use a deleter that captures the correct type
+    auto deleter = [](void* ptr) {
+        delete static_cast<T*>(ptr);
+    };
+    
+    m_interfaceRegistry[typeIdx] = std::shared_ptr<void>(instance, deleter);
+    return *instance;
 }
 
 } // namespace core

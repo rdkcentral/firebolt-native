@@ -21,6 +21,7 @@
 #include "firebolt/common/ISubscriptionState.h"
 #include <atomic>
 #include <mutex>
+#include <condition_variable>
 #include <functional>
 #include <string>
 
@@ -41,7 +42,9 @@ public:
 private:
     uint64_t m_subscriptionId;
     std::atomic<bool> m_active;
+    std::atomic<int> m_inflightDeliveries;  // Track in-flight DeliverEvent calls
     std::function<void(const std::string&)> m_callback;
+    std::condition_variable m_deliveryDone;  // Signals when all deliveries complete
     mutable std::mutex m_mutex;
 };
 

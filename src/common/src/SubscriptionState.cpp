@@ -23,7 +23,8 @@ namespace common {
 
 SubscriptionState::SubscriptionState(uint64_t subscriptionId)
     : m_subscriptionId(subscriptionId)
-    , m_active(true) {
+    , m_active(true)
+    , m_inflightDeliveries(0) {
 }
 
 SubscriptionState::~SubscriptionState() {
@@ -40,8 +41,15 @@ bool SubscriptionState::Unsubscribe() {
         return false;
     }
     m_active = false;
-    std::lock_guard<std::mutex> lock(m_mutex);
-    m_callback = nullptr;
+    
+    // Wait for any in-flight DeliverEvent calls to complete before clearing callback
+    // This ensures no further events are delivered after Unsubscribe() returns,
+    // even if a DeliverEvent was already executing when Unsubscribe() was called
+    {
+        std::unique_lock<std::mutex> lock(m_mutex);
+        m_deliveryDone.wait(lock, [this]() { return m_inflightDeliveries.load() == 0; });
+        m_callback = nullptr;
+    }
     return true;
 }
 
@@ -58,6 +66,9 @@ void SubscriptionState::DeliverEvent(const std::string& event) {
         return;
     }
 
+    // Increment in-flight counter before extracting callback
+    m_inflightDeliveries++;
+    
     // Extract callback while holding lock, then invoke outside lock to prevent deadlock
     // when listener calls Unsubscribe() or destroys the subscription
     std::function<void(const std::string&)> callback;
@@ -71,6 +82,11 @@ void SubscriptionState::DeliverEvent(const std::string& event) {
     // Invoke callback outside lock so listener can safely call Unsubscribe()
     if (callback) {
         callback(event);
+    }
+    
+    // Decrement in-flight counter and notify any waiting Unsubscribe() calls
+    if (--m_inflightDeliveries == 0) {
+        m_deliveryDone.notify_all();
     }
 }
 

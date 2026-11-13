@@ -56,5 +56,58 @@ FireboltResult<T> ParseJsonRpcResult(const std::string& jsonRpc) {
     }
 }
 
+/**
+ * @brief Converts a JSON-RPC event message into a typed event value
+ *
+ * Events may carry their payload in either "result" (notification) or "params" (event).
+ * This function tries both fields to support different event formats.
+ *
+ * @tparam T Model type read from the "result" or "params" member
+ * @param jsonRpc Full JSON-RPC event message string
+ * @return Success with the model, or Failure if neither field is present
+ */
+template<typename T>
+FireboltResult<T> ParseJsonRpcEvent(const std::string& jsonRpc) {
+    try {
+        FireboltObject envelope;
+        envelope.fromString(jsonRpc);
+
+        try {
+            if (envelope.has("error")) {
+                FireboltObject error = envelope.getObject("error");
+                return FireboltResult<T>::Failure(
+                    error.has("message") ? error.get<std::string>("message") : "Unknown error");
+            }
+        } catch (const std::exception&) {
+            // Ignore error parsing failures
+        }
+
+        // Events can use either "result" (notification) or "params" (event) field
+        try {
+            if (envelope.has("result")) {
+                T model;
+                model.fromObject(envelope.getObject("result"));
+                return FireboltResult<T>::Success(model);
+            }
+        } catch (const std::exception&) {
+            // Continue to try params if result parsing fails
+        }
+
+        try {
+            if (envelope.has("params")) {
+                T model;
+                model.fromObject(envelope.getObject("params"));
+                return FireboltResult<T>::Success(model);
+            }
+        } catch (const std::exception&) {
+            // Continue if params parsing fails
+        }
+
+        return FireboltResult<T>::Failure("Event has no result or params");
+    } catch (const std::exception& error) {
+        return FireboltResult<T>::Failure(error.what());
+    }
+}
+
 } // namespace common
 } // namespace firebolt
