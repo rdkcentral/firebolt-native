@@ -66,6 +66,20 @@ public:
      */
     void fromString(const std::string& payload);
 
+    /**
+     * @brief Checks whether a field exists in the object
+     * @param name Field name
+     * @return true if the field is present
+     */
+    bool has(const std::string& name) const;
+
+    /**
+     * @brief Gets a nested object field
+     * @param name Field name
+     * @return FireboltObject wrapping the nested value
+     */
+    FireboltObject getObject(const std::string& name) const;
+
 private:
     nlohmann::json m_json;
 };

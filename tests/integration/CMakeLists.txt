@@ -24,6 +24,26 @@ if(GTest_FOUND)
     )
 
     add_test(NAME test_core_lifecycle COMMAND test_core_lifecycle)
+
+    # Secure path and core/secure parity integration tests
+    add_executable(test_secure_lifecycle
+        test_secure_lifecycle.cpp
+    )
+
+    target_link_libraries(test_secure_lifecycle PRIVATE
+        firebolt-core-client
+        firebolt-secure-client
+        firebolt-common
+        firebolt-proto
+        GTest::gtest
+        GTest::gtest_main
+    )
+
+    target_include_directories(test_secure_lifecycle PRIVATE
+        ${CMAKE_SOURCE_DIR}/include
+    )
+
+    add_test(NAME test_secure_lifecycle COMMAND test_secure_lifecycle)
 else()
     message(STATUS "GTest not found - skipping integration tests")
 endif()

@@ -30,6 +30,8 @@
 
 namespace firebolt
 {
+namespace core
+{
 namespace lifecycle
 {
 
@@ -100,5 +102,11 @@ private:
     core::FireboltClient& m_client;
 };
 
+inline ILifecycle& LifecycleInterface(core::FireboltClient& client)
+{
+    return client.GetInterface<Lifecycle>();
+}
+
 } // namespace lifecycle
+} // namespace core
 } // namespace firebolt

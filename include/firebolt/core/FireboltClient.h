@@ -137,9 +137,10 @@ FireboltSubscription FireboltClient::Subscribe(const std::string& event, EventCa
 
     // Register event callback
     state->OnEvent([listener](const std::string& eventJson) {
-        T model;
-        model.fromString(eventJson);
-        listener(model);
+        auto parsed = common::ParseJsonRpcResult<T>(eventJson);
+        if (parsed.IsSuccess()) {
+            listener(parsed.Value());
+        }
     });
 
     // Send subscription request

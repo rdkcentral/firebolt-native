@@ -23,6 +23,7 @@
 #include "FireboltResult.h"
 #include "FireboltModel.h"
 #include "IOperationState.h"
+#include "JsonRpcResult.h"
 
 namespace firebolt {
 namespace common {
@@ -94,13 +95,7 @@ public:
         }
 
         m_state->OnComplete([callback](const std::string& responseJson) {
-            // Deserialize JSON string to model T
-            T model;
-            model.fromString(responseJson);
-
-            // Wrap in FireboltResult<T> and invoke callback
-            FireboltResult<T> result = FireboltResult<T>::Success(model);
-            callback(result);
+            callback(ParseJsonRpcResult<T>(responseJson));
         });
     }
 
@@ -121,11 +116,7 @@ public:
             return FireboltResult<T>::Failure("Operation timed out or was cancelled");
         }
 
-        // Deserialize JSON string to model T
-        T model;
-        model.fromJson(responseJson);
-
-        return FireboltResult<T>::Success(model);
+        return ParseJsonRpcResult<T>(responseJson);
     }
 
 private:

@@ -31,5 +31,15 @@ void FireboltObject::fromString(const std::string& payload) {
     m_json = nlohmann::json::parse(payload);
 }
 
+bool FireboltObject::has(const std::string& name) const {
+    return m_json.is_object() && m_json.contains(name);
+}
+
+FireboltObject FireboltObject::getObject(const std::string& name) const {
+    FireboltObject nested;
+    nested.m_json = m_json.at(name);
+    return nested;
+}
+
 } // namespace common
 } // namespace firebolt

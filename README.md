@@ -69,6 +69,7 @@ firebolt-native/
 
 - CMake 3.15 or higher
 - C++17 compatible compiler
+- Protobuf (found via `find_package(Protobuf REQUIRED)`). Tested with 7.36.2 from Homebrew. No minimum version is enforced yet.
 
 ### Building
 
@@ -82,6 +83,20 @@ cmake --build build
 # Clean build
 cmake --build build --clean-first
 ```
+
+### Building Libraries
+
+The three client libraries can be built on their own:
+
+```bash
+cmake --build build --target firebolt-common firebolt-core-client firebolt-secure-client
+```
+
+Outputs (`.dylib` on macOS, `.so` on Linux):
+
+- `build/src/common/libfirebolt-common`
+- `build/src/core/client/libfirebolt-core-client`
+- `build/src/secure/core/client/libfirebolt-secure-client`
 
 ### Out-of-tree Build
 
@@ -105,19 +120,18 @@ Each surface client accepts the appropriate transport interface:
 ```cpp
 // Core uses text transport (WebSocket)
 #include "firebolt/IFireboltTextTransport.h"
-#include "firebolt/core/CoreClient.h"
+#include "firebolt/core/FireboltClient.h"
 #include "firebolt/transport/ExampleTransport.h"
 
 auto transport = std::make_shared<firebolt::transport::ExampleTransport>();
-firebolt::core::CoreClient client(transport);
+firebolt::core::FireboltClient client(transport);
 
-// Crypto uses buffer transport (Protobuf/UDS)
+// Secure path uses buffer transport (Protobuf envelopes over UDS)
 #include "firebolt/IFireboltBufferTransport.h"
-#include "firebolt/crypto/CryptoClient.h"
-#include "firebolt/transport/SecureTransport.h"
+#include "firebolt/secure/core/FireboltSecureClient.h"
 
-auto secureTransport = std::make_shared<firebolt::transport::SecureTransport>();
-firebolt::crypto::CryptoClient cryptoClient(secureTransport);
+std::shared_ptr<firebolt::IFireboltBufferTransport> secureTransport = MakeBufferTransport();
+firebolt::secure::core::FireboltSecureClient secureClient(secureTransport);
 ```
 
 This enables:

@@ -50,6 +50,7 @@ add_subdirectory(src/common)
 
 # Surface clients
 add_subdirectory(src/core)
+add_subdirectory(src/secure/core/client)
 add_subdirectory(src/crypto)
 add_subdirectory(src/media)
 

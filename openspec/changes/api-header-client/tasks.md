@@ -33,10 +33,10 @@
 
 ## 5. Secure Client Implementation
 
-- [ ] 5.1 Create include/firebolt/secure/core/FireboltSecureClient.h with constructor accepting IFireboltBufferTransport and Send<T>(), Subscribe<T>(), and GetInterface<T>() methods and verify the header compiles
-- [ ] 5.2 Implement FireboltSecureClient in src/secure/core/client/src/FireboltSecureClient.cpp with Protobuf envelope wrapping, JSON-RPC-to-Protobuf translation, and envelope unwrapping and verify unit tests mock the transport and test the wrapping/unwrapping flow
-- [ ] 5.3 Create src/secure/core/client/CMakeLists.txt to build libfirebolt-secure-client.so linking to libfirebolt-common.so and libfirebolt-proto.so and verify the library builds and links correctly
-- [ ] 5.4 Implement envelope wrapping logic in src/secure/core/client/src/EnvelopeWrapper.cpp with RpcRequest/RpcResponse construction and CoreRequest/CoreResponse extraction and verify unit tests cover the secure send and receive flows
+- [x] 5.1 Create include/firebolt/secure/core/FireboltSecureClient.h with constructor accepting IFireboltBufferTransport and Send<T>(), Subscribe<T>(), and GetInterface<T>() methods and verify the header compiles
+- [x] 5.2 Implement FireboltSecureClient in src/secure/core/client/src/FireboltSecureClient.cpp with Protobuf envelope wrapping, JSON-RPC-to-Protobuf translation, and envelope unwrapping and verify unit tests mock the transport and test the wrapping/unwrapping flow
+- [x] 5.3 Create src/secure/core/client/CMakeLists.txt to build libfirebolt-secure-client.so linking to libfirebolt-common.so and libfirebolt-proto.so and verify the library builds and links correctly
+- [x] 5.4 Implement envelope wrapping logic in src/secure/core/client/src/EnvelopeWrapper.cpp with RpcRequest/RpcResponse construction and CoreRequest/CoreResponse extraction and verify unit tests cover the secure send and receive flows
 
 ## 6. Generated Lifecycle Interface - Core Path
 
@@ -48,30 +48,30 @@
 
 ## 7. Generated Lifecycle Interface - Secure Path
 
-- [ ] 7.1 Create include/firebolt/secure/core/Lifecycle.h with LifecycleState model (identical to core), ILifecycle interface, and Lifecycle implementation using FireboltSecureClient and verify the header compiles and has identical API surface to core path
-- [ ] 7.2 Verify LifecycleState write(FireboltObject&) and read(FireboltObject&) methods are identical to core path (reuse or copy)
-- [ ] 7.3 Implement Lifecycle.GetLifecycleState() method calling client.Send<LifecycleState>("lifecycle.state", FireboltObject{}) and verify the method signature is identical to core path
-- [ ] 7.4 Implement Lifecycle.OnStateChanged() method calling client.Subscribe<LifecycleState>("lifecycle.onStateChanged", listener) and verify the method signature is identical to core path
-- [ ] 7.5 Implement LifecycleInterface(FireboltSecureClient&) helper function calling client.GetInterface<Lifecycle>() and verify the function signature matches the secure client type
+- [x] 7.1 Create include/firebolt/secure/core/Lifecycle.h with LifecycleState model (identical to core), ILifecycle interface, and Lifecycle implementation using FireboltSecureClient and verify the header compiles and has identical API surface to core path
+- [x] 7.2 Verify LifecycleState write(FireboltObject&) and read(FireboltObject&) methods are identical to core path (reuse or copy)
+- [x] 7.3 Implement Lifecycle.GetLifecycleState() method calling client.Send<LifecycleState>("lifecycle.state", FireboltObject{}) and verify the method signature is identical to core path
+- [x] 7.4 Implement Lifecycle.OnStateChanged() method calling client.Subscribe<LifecycleState>("lifecycle.onStateChanged", listener) and verify the method signature is identical to core path
+- [x] 7.5 Implement LifecycleInterface(FireboltSecureClient&) helper function calling client.GetInterface<Lifecycle>() and verify the function signature matches the secure client type
 
 ## 8. Integration Testing
 
 - [x] 8.1 Create integration test for core path using ExampleTransport (text transport mock) and verify Lifecycle.GetLifecycleState() sends correct JSON-RPC and deserializes response
-- [ ] 8.2 Create integration test for secure path using ExampleTransport (buffer transport mock) and verify Lifecycle.GetLifecycleState() wraps JSON-RPC in Protobuf envelope correctly
+- [x] 8.2 Create integration test for secure path using ExampleTransport (buffer transport mock) and verify Lifecycle.GetLifecycleState() wraps JSON-RPC in Protobuf envelope correctly
 - [x] 8.3 Create integration test for core path subscription and verify Lifecycle.OnStateChanged() registers listener and receives events
-- [ ] 8.4 Create integration test for secure path subscription and verify Lifecycle.OnStateChanged() registers listener and receives events through envelope unwrapping
-- [ ] 8.5 Verify both core and secure paths produce identical application-visible behavior with different underlying transports
+- [x] 8.4 Create integration test for secure path subscription and verify Lifecycle.OnStateChanged() registers listener and receives events through envelope unwrapping
+- [x] 8.5 Verify both core and secure paths produce identical application-visible behavior with different underlying transports
 
 ## 9. Documentation and Examples
 
-- [ ] 9.1 Create README.md in include/firebolt/core/ documenting the core path usage with FireboltClient and Lifecycle example and verify the documented code compiles and runs
-- [ ] 9.2 Create README.md in include/firebolt/secure/core/ documenting the secure path usage with FireboltSecureClient and Lifecycle example and verify the documented code compiles and runs
-- [ ] 9.3 Add build instructions to main README.md explaining how to build libfirebolt-common.so, libfirebolt-core-client.so, and libfirebolt-secure-client.so and verify the instructions are accurate
-- [ ] 9.4 Document the protobuf envelope structure in a design doc or code comments and verify the documentation matches the actual implementation
+- [x] 9.1 Create README.md in include/firebolt/core/ documenting the core path usage with FireboltClient and Lifecycle example and verify the documented code compiles and runs
+- [x] 9.2 Create README.md in include/firebolt/secure/core/ documenting the secure path usage with FireboltSecureClient and Lifecycle example and verify the documented code compiles and runs
+- [x] 9.3 Add build instructions to main README.md explaining how to build libfirebolt-common.so, libfirebolt-core-client.so, and libfirebolt-secure-client.so and verify the instructions are accurate
+- [x] 9.4 Document the protobuf envelope structure in a design doc or code comments and verify the documentation matches the actual implementation
 
 ## 10. Build System Verification
 
-- [ ] 10.1 Verify the complete build (including protobuf generation, all libraries, and generated interfaces) succeeds without errors
-- [ ] 10.2 Verify all libraries export the correct symbols (nm or similar tool) and verify no missing symbols
-- [ ] 10.3 Verify include paths are correctly set so that #include <firebolt/core/Lifecycle.h> and #include <firebolt/secure/core/Lifecycle.h> resolve correctly
-- [ ] 10.4 Verify the build works with both local protobuf installation (vcpkg or system) and documents the minimum protobuf version required
+- [x] 10.1 Verify the complete build (including protobuf generation, all libraries, and generated interfaces) succeeds without errors
+- [x] 10.2 Verify all libraries export the correct symbols (nm or similar tool) and verify no missing symbols
+- [x] 10.3 Verify include paths are correctly set so that #include <firebolt/core/Lifecycle.h> and #include <firebolt/secure/core/Lifecycle.h> resolve correctly
+- [ ] 10.4 Verify the build works with both local protobuf installation (vcpkg or system) and documents the minimum protobuf version required (partial: built and tested with Homebrew 7.36.2, vcpkg not available, minimum version not established)
