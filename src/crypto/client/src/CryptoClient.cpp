@@ -21,7 +21,7 @@
 namespace firebolt {
 namespace crypto {
 
-CryptoClient::CryptoClient(std::shared_ptr<IFireboltTransport> transport)
+CryptoClient::CryptoClient(std::shared_ptr<IFireboltBufferTransport> transport)
     : m_transport(std::move(transport)) {
 }
 

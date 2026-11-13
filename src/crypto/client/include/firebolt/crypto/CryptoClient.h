@@ -18,7 +18,7 @@
 
 #pragma once
 
-#include "firebolt/IFireboltTransport.h"
+#include "firebolt/IFireboltBufferTransport.h"
 
 #include <memory>
 
@@ -27,11 +27,11 @@ namespace crypto {
 
 class CryptoClient {
 public:
-    explicit CryptoClient(std::shared_ptr<IFireboltTransport> transport);
+    explicit CryptoClient(std::shared_ptr<IFireboltBufferTransport> transport);
     ~CryptoClient() = default;
 
 private:
-    std::shared_ptr<IFireboltTransport> m_transport;
+    std::shared_ptr<IFireboltBufferTransport> m_transport;
 };
 
 } // namespace crypto

@@ -18,4 +18,53 @@
 
 #include "firebolt/transport/ExampleTransport.h"
 
-// Placeholder unit test for ExampleTransport
+#include <cassert>
+#include <iostream>
+
+int main() {
+    using namespace firebolt::transport;
+
+    // Test 1: Create transport
+    ExampleTransport transport;
+    std::cout << "Test 1: Transport created successfully" << std::endl;
+
+    // Test 2: Open connection
+    bool connectionCallbackCalled = false;
+    transport.onConnectionStatusChanged([&](bool connected, const std::string& errorInfo) {
+        connectionCallbackCalled = true;
+        assert(connected == true);
+        assert(errorInfo.empty());
+    });
+    bool opened = transport.open();
+    assert(opened == true);
+    assert(transport.isConnected() == true);
+    assert(connectionCallbackCalled == true);
+    std::cout << "Test 2: Connection opened successfully" << std::endl;
+
+    // Test 3: Send message
+    bool messageCallbackCalled = false;
+    std::string receivedMessage;
+    transport.onMessageReceived([&](const std::string& message) {
+        messageCallbackCalled = true;
+        receivedMessage = message;
+    });
+    bool sent = transport.send("test message");
+    assert(sent == true);
+    assert(messageCallbackCalled == true);
+    assert(receivedMessage == "test message");
+    std::cout << "Test 3: Message sent and received successfully" << std::endl;
+
+    // Test 4: Disconnect
+    bool disconnectCallbackCalled = false;
+    transport.onConnectionStatusChanged([&](bool connected, const std::string& errorInfo) {
+        disconnectCallbackCalled = true;
+        assert(connected == false);
+    });
+    transport.disconnect();
+    assert(transport.isConnected() == false);
+    assert(disconnectCallbackCalled == true);
+    std::cout << "Test 4: Disconnected successfully" << std::endl;
+
+    std::cout << "All tests passed!" << std::endl;
+    return 0;
+}

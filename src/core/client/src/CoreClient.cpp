@@ -21,7 +21,7 @@
 namespace firebolt {
 namespace core {
 
-CoreClient::CoreClient(std::shared_ptr<IFireboltTransport> transport)
+CoreClient::CoreClient(std::shared_ptr<IFireboltTextTransport> transport)
     : m_transport(std::move(transport)) {
 }
 

@@ -21,18 +21,52 @@
 namespace firebolt {
 namespace transport {
 
-void ExampleTransport::send(const std::string& message) {
-    m_messageQueue.push(message);
+bool ExampleTransport::open() {
+    m_connected = true;
+    if (m_connectionCallback) {
+        m_connectionCallback(true, "");
+    }
+    return true;
 }
 
-std::string ExampleTransport::receive() {
-    if (m_messageQueue.empty()) {
-        return "";
-    }
+bool ExampleTransport::isConnected() {
+    return m_connected;
+}
 
-    std::string message = m_messageQueue.front();
-    m_messageQueue.pop();
-    return message;
+void ExampleTransport::onConnectionStatusChanged(
+    std::function<void(bool connected, const std::string& errorInfo)> callback) {
+    m_connectionCallback = std::move(callback);
+}
+
+bool ExampleTransport::send(const std::string& message) {
+    if (!m_connected) {
+        return false;
+    }
+    m_messageQueue.push(message);
+    
+    // Simulate receiving a message by calling the callback
+    if (m_messageCallback && !m_messageQueue.empty()) {
+        std::string msg = m_messageQueue.front();
+        m_messageQueue.pop();
+        m_messageCallback(msg);
+    }
+    
+    return true;
+}
+
+void ExampleTransport::onMessageReceived(
+    std::function<void(const std::string& message)> callback) {
+    m_messageCallback = std::move(callback);
+}
+
+void ExampleTransport::disconnect() {
+    m_connected = false;
+    if (m_connectionCallback) {
+        m_connectionCallback(false, "");
+    }
+    while (!m_messageQueue.empty()) {
+        m_messageQueue.pop();
+    }
 }
 
 } // namespace transport
