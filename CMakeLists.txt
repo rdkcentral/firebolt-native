@@ -42,6 +42,9 @@ endif()
 # Include compiler flags
 include(cmake/CompilerFlags.cmake)
 
+# Enable tests before adding subdirectories so each one's add_test() is registered
+enable_testing()
+
 # Protobuf definitions
 add_subdirectory(src/proto)
 

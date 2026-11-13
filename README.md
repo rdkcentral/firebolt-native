@@ -110,6 +110,36 @@ cmake -S /path/to/firebolt-native -B /tmp/firebolt-build
 cmake --build /tmp/firebolt-build
 ```
 
+### Running Tests
+
+Tests use GoogleTest. If it is not installed, CMake skips them with a "GTest not found" message
+and ctest reports no tests. On macOS, install it with `brew install googletest`.
+
+Run the tests with the helper script, which configures, builds, and runs ctest:
+
+```bash
+scripts/run-tests.sh                        # all tests
+scripts/run-tests.sh unit                   # unit tests only
+scripts/run-tests.sh integration            # integration tests only
+scripts/run-tests.sh all out-dir            # use another build directory (default: build)
+```
+
+The second argument is the build directory, relative to the repository root, and works with every suite.
+The script stops at the first failed build step and exits non-zero if any test fails.
+
+| Suite       | Tests                                          |
+|-------------|------------------------------------------------|
+| unit        | `test_secure_client`                           |
+| integration | `test_core_lifecycle`, `test_secure_lifecycle` |
+
+To run ctest directly, build first and then run it against the build directory:
+
+```bash
+cmake -S . -B build
+cmake --build build
+ctest --test-dir build --output-on-failure
+```
+
 ## Transport Architecture
 
 The library uses runtime dependency injection for transports with protocol-specific interfaces:
