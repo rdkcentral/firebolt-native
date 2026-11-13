@@ -69,5 +69,11 @@ void ExampleTransport::disconnect() {
     }
 }
 
+void ExampleTransport::InjectMessage(const std::string& message) {
+    if (m_messageCallback) {
+        m_messageCallback(message);
+    }
+}
+
 } // namespace transport
 } // namespace firebolt

@@ -197,9 +197,9 @@ FireboltSubscription FireboltClient::Subscribe(const std::string& event, EventCa
         m_subscriptions[subscriptionId] = state;
     }
 
-    // Register event callback using ParseJsonRpcResult - silently ignores subscription ACKs
+    // Register event callback using ParseJsonRpcEvent to handle both "result" and "params" fields
     state->OnEvent([listener](const std::string& eventJson) {
-        auto parsed = common::ParseJsonRpcResult<T>(eventJson);
+        auto parsed = common::ParseJsonRpcEvent<T>(eventJson);
         if (parsed.IsSuccess()) {
             listener(parsed.Value());
         }

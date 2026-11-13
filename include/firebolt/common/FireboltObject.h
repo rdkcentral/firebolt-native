@@ -93,7 +93,7 @@ void FireboltObject::set(const std::string& name, const T& value) {
 
 template<typename T>
 T FireboltObject::get(const std::string& name) const {
-    return m_json[name].get<T>();
+    return m_json.at(name).get<T>();
 }
 
 // Specializations for common types
@@ -104,7 +104,7 @@ inline void FireboltObject::set<std::string>(const std::string& name, const std:
 
 template<>
 inline std::string FireboltObject::get<std::string>(const std::string& name) const {
-    return m_json[name].get<std::string>();
+    return m_json.at(name).get<std::string>();
 }
 
 template<>
@@ -114,7 +114,7 @@ inline void FireboltObject::set<int32_t>(const std::string& name, const int32_t&
 
 template<>
 inline int32_t FireboltObject::get<int32_t>(const std::string& name) const {
-    return m_json[name].get<int32_t>();
+    return m_json.at(name).get<int32_t>();
 }
 
 template<>
@@ -124,7 +124,7 @@ inline void FireboltObject::set<bool>(const std::string& name, const bool& value
 
 template<>
 inline bool FireboltObject::get<bool>(const std::string& name) const {
-    return m_json[name].get<bool>();
+    return m_json.at(name).get<bool>();
 }
 
 } // namespace common

@@ -18,8 +18,14 @@
 
 #include "firebolt/common/SubscriptionState.h"
 
+#include <unordered_map>
+
 namespace firebolt {
 namespace common {
+
+namespace {
+thread_local std::unordered_map<const SubscriptionState*, uint64_t> activeDeliveries;
+}
 
 SubscriptionState::SubscriptionState(uint64_t subscriptionId)
     : m_subscriptionId(subscriptionId)
@@ -37,20 +43,19 @@ void SubscriptionState::OnEvent(std::function<void(const std::string&)> callback
 }
 
 bool SubscriptionState::Unsubscribe() {
-    if (!m_active.load()) {
-        return false;
-    }
-    m_active = false;
-    
-    // Wait for any in-flight DeliverEvent calls to complete before clearing callback
-    // This ensures no further events are delivered after Unsubscribe() returns,
-    // even if a DeliverEvent was already executing when Unsubscribe() was called
-    {
-        std::unique_lock<std::mutex> lock(m_mutex);
-        m_deliveryDone.wait(lock, [this]() { return m_inflightDeliveries.load() == 0; });
-        m_callback = nullptr;
-    }
-    return true;
+    std::unique_lock<std::mutex> lock(m_mutex);
+    const bool wasActive = m_active.exchange(false);
+    const auto currentThreadDeliveries = activeDeliveries.find(this);
+    const uint64_t ownDeliveries = currentThreadDeliveries == activeDeliveries.end()
+        ? 0
+        : currentThreadDeliveries->second;
+
+    // Wait for other dispatches, but do not deadlock when called by a listener.
+    m_deliveryDone.wait(lock, [this, ownDeliveries]() {
+        return m_inflightDeliveries.load() <= ownDeliveries;
+    });
+    m_callback = nullptr;
+    return wasActive;
 }
 
 bool SubscriptionState::IsActive() const {
@@ -62,32 +67,50 @@ uint64_t SubscriptionState::GetSubscriptionId() const {
 }
 
 void SubscriptionState::DeliverEvent(const std::string& event) {
-    if (!m_active.load()) {
-        return;
-    }
-
-    // Increment in-flight counter before extracting callback
-    m_inflightDeliveries++;
-    
-    // Extract callback while holding lock, then invoke outside lock to prevent deadlock
-    // when listener calls Unsubscribe() or destroys the subscription
     std::function<void(const std::string&)> callback;
     {
         std::lock_guard<std::mutex> lock(m_mutex);
-        if (m_active.load()) {
-            callback = m_callback;
+        if (!m_active.load()) {
+            return;
         }
+        // Register the dispatch under the same lock used to deactivate the
+        // subscription, so Unsubscribe cannot miss a callback about to run.
+        ++m_inflightDeliveries;
+        callback = m_callback;
     }
 
-    // Invoke callback outside lock so listener can safely call Unsubscribe()
-    if (callback) {
-        callback(event);
-    }
-    
-    // Decrement in-flight counter and notify any waiting Unsubscribe() calls
-    if (--m_inflightDeliveries == 0) {
+    // Decrement under the same mutex used by Unsubscribe's wait predicate,
+    // including when the listener throws.
+    const auto finishDelivery = [this]() {
+        bool noInflightDeliveries = false;
+        {
+            std::lock_guard<std::mutex> lock(m_mutex);
+            noInflightDeliveries = (--m_inflightDeliveries == 0);
+        }
         m_deliveryDone.notify_all();
+    };
+
+    // Invoke callback outside lock so listener can safely call Unsubscribe().
+    try {
+        if (callback) {
+            ++activeDeliveries[this];
+            callback(event);
+            auto delivery = activeDeliveries.find(this);
+            if (--delivery->second == 0) {
+                activeDeliveries.erase(delivery);
+            }
+        }
+    } catch (...) {
+        if (callback) {
+            auto delivery = activeDeliveries.find(this);
+            if (delivery != activeDeliveries.end() && --delivery->second == 0) {
+                activeDeliveries.erase(delivery);
+            }
+        }
+        finishDelivery();
+        throw;
     }
+    finishDelivery();
 }
 
 } // namespace common

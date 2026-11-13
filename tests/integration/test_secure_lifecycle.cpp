@@ -167,3 +167,71 @@ TEST(LifecycleParity, CoreAndSecurePathsProduceSameResults) {
     EXPECT_EQ(core.events, secure.events);
     EXPECT_EQ(core.events, std::vector<std::string>{kStateChanged});
 }
+
+// Buffer device variant that sends events with "params" field instead of "result"
+class BufferDeviceWithParams : public firebolt::IFireboltBufferTransport {
+public:
+    bool open() override { return true; }
+    bool isConnected() override { return true; }
+    void onConnectionStatusChanged(std::function<void(bool, const std::string&)>) override {}
+    bool send(const std::vector<uint8_t>& data) override {
+        RpcRequest envelope;
+        envelope.ParseFromArray(data.data(), static_cast<int>(data.size()));
+        CoreRequest core;
+        core.ParseFromString(envelope.payload());
+        if (core.method() == "lifecycle.state") {
+            CoreResponse response;
+            response.set_id(core.id());
+            response.set_result(nlohmann::json{{"state", kLifecycleState}}.dump());
+            deliver(envelope.request_id(), response);
+        } else if (core.method() == "lifecycle.onStateChanged") {
+            subscriptionRequestId = envelope.request_id();
+        }
+        return true;
+    }
+    void onMessageReceived(std::function<void(const std::vector<uint8_t>&)> callback) override {
+        receiver = std::move(callback);
+    }
+    void disconnect() override {}
+
+    void emitStateChanged() {
+        CoreResponse event;
+        event.set_id(subscriptionRequestId);
+        event.set_params(nlohmann::json{{"state", kStateChanged}}.dump());
+        deliver(subscriptionRequestId, event);
+    }
+
+    std::function<void(const std::vector<uint8_t>&)> receiver;
+    uint64_t subscriptionRequestId = 0;
+
+private:
+    void deliver(uint64_t requestId, const CoreResponse& core) {
+        std::string corePayload;
+        core.SerializeToString(&corePayload);
+        RpcResponse response;
+        response.set_request_id(requestId);
+        response.set_service(RPC_SERVICE_JSON_RPC);
+        response.set_schema_version(1);
+        response.set_status(RPC_STATUS_OK);
+        response.set_payload(corePayload);
+        std::string bytes;
+        response.SerializeToString(&bytes);
+        receiver(std::vector<uint8_t>(bytes.begin(), bytes.end()));
+    }
+};
+
+TEST(SecureLifecycleIntegration, OnStateChangedDeliversParamsBasedEvents) {
+    auto device = std::make_shared<BufferDeviceWithParams>();
+    firebolt::secure::core::FireboltSecureClient client(device);
+    firebolt::secure::core::lifecycle::Lifecycle lifecycle(client);
+
+    std::vector<std::string> events;
+    auto subscription = lifecycle.OnStateChanged([&events](const auto& state) {
+        events.push_back(state.state);
+    });
+    device->emitStateChanged();
+
+    ASSERT_EQ(events.size(), 1u);
+    EXPECT_EQ(events[0], kStateChanged);
+}
+
