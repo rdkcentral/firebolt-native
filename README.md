@@ -18,6 +18,8 @@ firebolt-native/
 │   └── firebolt/
 │       ├── IFireboltTextTransport.h        # Text-based transport interface (WebSocket)
 │       └── IFireboltBufferTransport.h      # Buffer-based transport interface (Protobuf/UDS)
+│       ├── IFireboltTextTransport.h        # Text-based transport interface (WebSocket)
+│       └── IFireboltBufferTransport.h      # Buffer-based transport interface (Protobuf/UDS)
 │
 ├── src/
 │   ├── common/                             # Shared utilities
@@ -116,6 +118,12 @@ The library uses runtime dependency injection for transports with protocol-speci
 - **IFireboltBufferTransport**: For buffer-based protocols (e.g., Protobuf over Unix Domain Socket)
 
 Each surface client accepts the appropriate transport interface:
+The library uses runtime dependency injection for transports with protocol-specific interfaces:
+
+- **IFireboltTextTransport**: For text-based protocols (e.g., WebSocket with JSON-RPC)
+- **IFireboltBufferTransport**: For buffer-based protocols (e.g., Protobuf over Unix Domain Socket)
+
+Each surface client accepts the appropriate transport interface:
 
 ```cpp
 // Core uses text transport (WebSocket)
@@ -138,6 +146,7 @@ This enables:
 - Testability with mock transports
 - Partner extensibility with custom transports
 - Flexible protocol selection at runtime
+- Type-safe separation between text and binary protocols
 - Type-safe separation between text and binary protocols
 
 ## Adding a New Surface
@@ -182,6 +191,9 @@ To add a new surface:
 To implement a custom transport, choose the appropriate interface based on your protocol:
 
 ### Text-Based Transport (WebSocket, JSON-RPC)
+To implement a custom transport, choose the appropriate interface based on your protocol:
+
+### Text-Based Transport (WebSocket, JSON-RPC)
 
 1. Create the directory structure:
    ```
@@ -203,14 +215,25 @@ To implement a custom transport, choose the appropriate interface based on your 
    ```
 
 3. Inherit from `IFireboltTextTransport`:
+3. Inherit from `IFireboltTextTransport`:
    ```cpp
+   #include "firebolt/IFireboltTextTransport.h"
    #include "firebolt/IFireboltTextTransport.h"
 
    namespace firebolt {
    namespace transport {
 
    class CustomTextTransport : public IFireboltTextTransport {
+   class CustomTextTransport : public IFireboltTextTransport {
    public:
+       bool open() override;
+       bool isConnected() override;
+       void onConnectionStatusChanged(
+           std::function<void(bool, const std::string&)> callback) override;
+       bool send(const std::string& message) override;
+       void onMessageReceived(
+           std::function<void(const std::string&)> callback) override;
+       void disconnect() override;
        bool open() override;
        bool isConnected() override;
        void onConnectionStatusChanged(
@@ -225,6 +248,33 @@ To implement a custom transport, choose the appropriate interface based on your 
    } // namespace firebolt
    ```
 
+### Buffer-Based Transport (Protobuf, UDS)
+
+Follow the same structure but inherit from `IFireboltBufferTransport`:
+
+```cpp
+#include "firebolt/IFireboltBufferTransport.h"
+
+namespace firebolt {
+namespace transport {
+
+class CustomBufferTransport : public IFireboltBufferTransport {
+public:
+    bool open() override;
+    bool isConnected() override;
+    void onConnectionStatusChanged(
+        std::function<void(bool, const std::string&)> callback) override;
+    bool send(const std::vector<uint8_t>& data) override;
+    void onMessageReceived(
+        std::function<void(const std::vector<uint8_t>&)> callback) override;
+    void disconnect() override;
+};
+
+} // namespace transport
+} // namespace firebolt
+```
+
+4. Implement the methods according to your protocol.
 ### Buffer-Based Transport (Protobuf, UDS)
 
 Follow the same structure but inherit from `IFireboltBufferTransport`:
