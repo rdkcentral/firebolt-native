@@ -63,6 +63,15 @@ public:
     FireboltSecureClient& operator=(const FireboltSecureClient&) = delete;
 
     /**
+     * @brief Unregisters the receiver and waits for in-flight callbacks to finish
+     *
+     * Must be called before the client is destroyed if the transport may outlive it.
+     * Prevents use-after-free bugs when the transport delivers callbacks after
+     * the client is destroyed.
+     */
+    void shutdown();
+
+    /**
      * @brief Sends a JSON-RPC request wrapped in a Protobuf envelope
      * @tparam T Response model type
      * @param method JSON-RPC method name
@@ -96,47 +105,48 @@ private:
 
     std::shared_ptr<IFireboltBufferTransport> m_transport;
     uint64_t m_nextRequestId;
-    std::unordered_map<uint64_t, IOperationState*> m_pendingRequests;
-    std::unordered_map<uint64_t, ISubscriptionState*> m_subscriptions;
+    std::unordered_map<uint64_t, std::shared_ptr<IOperationState>> m_pendingRequests;
+    std::unordered_map<uint64_t, std::shared_ptr<ISubscriptionState>> m_subscriptions;
     std::mutex m_mutex;
+    bool m_isShutdown = false;
 };
 
 // Template implementations
 template<typename T>
 FireboltOperation<T> FireboltSecureClient::Send(const std::string& method, const FireboltObject& params) {
-    uint64_t requestId = m_nextRequestId++;
+    uint64_t requestId;
+    std::shared_ptr<IOperationState> state;
 
-    // Create operation state (owned by runtime)
-    auto* state = common::StateFactory::CreateOperationState(requestId);
-
-    // Register state with correlation map
+    // Allocate ID and create state under the lock to prevent ID reuse
     {
         std::lock_guard<std::mutex> lock(m_mutex);
+        requestId = m_nextRequestId++;
+        state = common::StateFactory::CreateOperationState(requestId);
         m_pendingRequests[requestId] = state;
     }
 
-    // Wrap JSON-RPC request in Protobuf envelope and send via transport
+    // Wrap JSON-RPC request in Protobuf envelope and send via transport (outside lock to allow concurrent operations)
     std::string paramsJson = params.toString();
     m_transport->send(BuildRequest(requestId, method, paramsJson));
 
-    // Return wrapper - state ownership stays with runtime
+    // Return wrapper - state ownership shared between map and operation handle
     return FireboltOperation<T>(state);
 }
 
 template<typename T>
 FireboltSubscription FireboltSecureClient::Subscribe(const std::string& event, EventCallback<T> listener) {
-    uint64_t subscriptionId = m_nextRequestId++;
+    uint64_t subscriptionId;
+    std::shared_ptr<ISubscriptionState> state;
 
-    // Create subscription state (owned by runtime)
-    auto* state = common::StateFactory::CreateSubscriptionState(subscriptionId);
-
-    // Register state with correlation map
+    // Allocate ID and create state under the lock to prevent ID reuse
     {
         std::lock_guard<std::mutex> lock(m_mutex);
+        subscriptionId = m_nextRequestId++;
+        state = common::StateFactory::CreateSubscriptionState(subscriptionId);
         m_subscriptions[subscriptionId] = state;
     }
 
-    // Register event callback
+    // Register event callback that removes subscription from map when unsubscribed
     state->OnEvent([listener](const std::string& eventJson) {
         auto parsed = common::ParseJsonRpcResult<T>(eventJson);
         if (parsed.IsSuccess()) {
@@ -144,10 +154,10 @@ FireboltSubscription FireboltSecureClient::Subscribe(const std::string& event, E
         }
     });
 
-    // Send subscription request wrapped in Protobuf envelope
+    // Send subscription request wrapped in Protobuf envelope (outside lock to allow concurrent operations)
     m_transport->send(BuildRequest(subscriptionId, event, "{}"));
 
-    // Return wrapper - state ownership stays with runtime
+    // Return wrapper - state ownership shared between map and subscription handle
     return FireboltSubscription(state);
 }
 

@@ -20,17 +20,23 @@
 
 #include "firebolt/common/IOperationState.h"
 #include "firebolt/common/ISubscriptionState.h"
+#include <memory>
 
 namespace firebolt {
 namespace common {
 
 /**
  * @brief Factory functions for creating state instances
+ *
+ * Returns shared_ptr to ensure proper lifetime management. Both operation and
+ * subscription states are owned by both the client map and the handle wrapper.
+ * When the client removes an entry from its map, the handle wrapper (FireboltOperation
+ * or FireboltSubscription) retains ownership until destroyed.
  */
 class StateFactory {
 public:
-    static IOperationState* CreateOperationState(uint64_t requestId);
-    static ISubscriptionState* CreateSubscriptionState(uint64_t subscriptionId);
+    static std::shared_ptr<IOperationState> CreateOperationState(uint64_t requestId);
+    static std::shared_ptr<ISubscriptionState> CreateSubscriptionState(uint64_t subscriptionId);
 };
 
 } // namespace common

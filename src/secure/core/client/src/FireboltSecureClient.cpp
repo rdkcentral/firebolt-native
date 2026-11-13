@@ -27,14 +27,27 @@ namespace core {
 
 FireboltSecureClient::FireboltSecureClient(std::shared_ptr<IFireboltBufferTransport> transport)
     : m_transport(transport)
-    , m_nextRequestId(1) {
+    , m_nextRequestId(1)
+    , m_isShutdown(false) {
 
     m_transport->onMessageReceived([this](const std::vector<uint8_t>& data) {
         OnTransportMessage(data);
     });
 }
 
-FireboltSecureClient::~FireboltSecureClient() = default;
+FireboltSecureClient::~FireboltSecureClient() {
+    shutdown();
+}
+
+void FireboltSecureClient::shutdown() {
+    {
+        std::lock_guard<std::mutex> lock(m_mutex);
+        m_isShutdown = true;
+    }
+    
+    // Disconnect the transport to stop receiving messages and unregister callbacks
+    m_transport->disconnect();
+}
 
 void FireboltSecureClient::OnTransportMessage(const std::vector<uint8_t>& data) {
     uint64_t requestId = 0;
@@ -45,10 +58,15 @@ void FireboltSecureClient::OnTransportMessage(const std::vector<uint8_t>& data) 
 
     // Look up state under the lock but invoke callbacks after releasing it,
     // so callbacks may safely issue new requests.
-    IOperationState* operation = nullptr;
-    ISubscriptionState* subscription = nullptr;
+    std::shared_ptr<IOperationState> operation;
+    std::shared_ptr<ISubscriptionState> subscription;
     {
         std::lock_guard<std::mutex> lock(m_mutex);
+
+        // If we're shutting down, discard the message to avoid use-after-free
+        if (m_isShutdown) {
+            return;
+        }
 
         auto reqIt = m_pendingRequests.find(requestId);
         if (reqIt != m_pendingRequests.end()) {

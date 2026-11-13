@@ -27,6 +27,9 @@ esac
 
 JOBS="$(sysctl -n hw.ncpu 2>/dev/null || nproc 2>/dev/null || echo 4)"
 
+echo "==> Cleaning existing build"
+rm -rf "${BUILD_DIR}"
+
 echo "==> Configuring (${BUILD_DIR})"
 cmake -S "${REPO_ROOT}" -B "${BUILD_DIR}"
 

@@ -1,9 +1,5 @@
 # Protobuf definitions and code generation
 
-# Set output directories for generated protobuf files
-set(PROTO_OUTPUT_DIR "${CMAKE_CURRENT_BINARY_DIR}")
-set(PROTO_INCLUDE_DIR "${CMAKE_SOURCE_DIR}/include/firebolt/proto")
-
 # Generate protobuf files for rpc.proto
 protobuf_generate_cpp(RPC_PROTO_SRCS RPC_PROTO_HDRS rpc.proto)
 
@@ -22,6 +18,7 @@ add_library(firebolt-proto SHARED
 )
 
 # Set include directories
+# Generated headers are located in CMAKE_CURRENT_BINARY_DIR and exported as an include root
 target_include_directories(firebolt-proto PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}
     ${CMAKE_CURRENT_BINARY_DIR}
@@ -47,14 +44,3 @@ if(absl_FOUND)
         NDEBUG
     )
 endif()
-
-# Copy generated headers to include/firebolt/proto/ after generation
-foreach(hdr ${RPC_PROTO_HDRS} ${CORE_PROTO_HDRS})
-    get_filename_component(filename ${hdr} NAME)
-    add_custom_command(TARGET firebolt-proto POST_BUILD
-        COMMAND ${CMAKE_COMMAND} -E copy_if_different
-        ${hdr}
-        ${PROTO_INCLUDE_DIR}/${filename}
-        COMMENT "Copying ${filename} to include/firebolt/proto/"
-    )
-endforeach()

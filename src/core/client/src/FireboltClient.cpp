@@ -27,7 +27,8 @@ namespace core {
 
 FireboltClient::FireboltClient(std::shared_ptr<IFireboltTextTransport> transport)
     : m_transport(transport)
-    , m_nextRequestId(1) {
+    , m_nextRequestId(1)
+    , m_isShutdown(false) {
     
     // Register transport callback
     m_transport->onMessageReceived([this](const std::string& message) {
@@ -35,7 +36,19 @@ FireboltClient::FireboltClient(std::shared_ptr<IFireboltTextTransport> transport
     });
 }
 
-FireboltClient::~FireboltClient() = default;
+FireboltClient::~FireboltClient() {
+    shutdown();
+}
+
+void FireboltClient::shutdown() {
+    {
+        std::lock_guard<std::mutex> lock(m_mutex);
+        m_isShutdown = true;
+    }
+    
+    // Disconnect the transport to stop receiving messages and unregister callbacks
+    m_transport->disconnect();
+}
 
 void FireboltClient::OnTransportMessage(const std::string& message) {
     try {
@@ -45,10 +58,16 @@ void FireboltClient::OnTransportMessage(const std::string& message) {
         if (json.contains("id")) {
             uint64_t id = json["id"];
             
-            IOperationState* operation = nullptr;
-            ISubscriptionState* subscription = nullptr;
+            std::shared_ptr<IOperationState> operation;
+            std::shared_ptr<ISubscriptionState> subscription;
             {
                 std::lock_guard<std::mutex> lock(m_mutex);
+
+                // If we're shutting down, discard the message to avoid use-after-free
+                if (m_isShutdown) {
+                    return;
+                }
+
                 auto reqIt = m_pendingRequests.find(id);
                 if (reqIt != m_pendingRequests.end()) {
                     operation = reqIt->second;

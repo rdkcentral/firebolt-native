@@ -47,7 +47,7 @@ using OperationCallback = std::function<void(const FireboltResult<T>&)>;
 template<typename T>
 class FireboltOperation {
 public:
-    explicit FireboltOperation(IOperationState* state)
+    explicit FireboltOperation(std::shared_ptr<IOperationState> state)
         : m_state(state) {
     }
 
@@ -120,7 +120,7 @@ public:
     }
 
 private:
-    IOperationState* m_state;
+    std::shared_ptr<IOperationState> m_state;
 };
 
 } // namespace common

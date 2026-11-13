@@ -18,6 +18,7 @@
 
 #pragma once
 
+#include <memory>
 #include "FireboltResult.h"
 #include "ISubscriptionState.h"
 
@@ -32,7 +33,7 @@ namespace common {
  */
 class FireboltSubscription {
 public:
-    explicit FireboltSubscription(ISubscriptionState* state)
+    explicit FireboltSubscription(std::shared_ptr<ISubscriptionState> state)
         : m_state(state) {
     }
 
@@ -89,7 +90,7 @@ public:
     }
 
 private:
-    ISubscriptionState* m_state;
+    std::shared_ptr<ISubscriptionState> m_state;
 };
 
 } // namespace common

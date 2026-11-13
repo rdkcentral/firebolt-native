@@ -57,9 +57,20 @@ void SubscriptionState::DeliverEvent(const std::string& event) {
     if (!m_active.load()) {
         return;
     }
-    std::lock_guard<std::mutex> lock(m_mutex);
-    if (m_callback) {
-        m_callback(event);
+
+    // Extract callback while holding lock, then invoke outside lock to prevent deadlock
+    // when listener calls Unsubscribe() or destroys the subscription
+    std::function<void(const std::string&)> callback;
+    {
+        std::lock_guard<std::mutex> lock(m_mutex);
+        if (m_active.load()) {
+            callback = m_callback;
+        }
+    }
+
+    // Invoke callback outside lock so listener can safely call Unsubscribe()
+    if (callback) {
+        callback(event);
     }
 }
 

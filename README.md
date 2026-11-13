@@ -254,7 +254,6 @@ To implement a custom transport, choose the appropriate interface based on your 
    namespace transport {
 
    class CustomTextTransport : public IFireboltTextTransport {
-   class CustomTextTransport : public IFireboltTextTransport {
    public:
        bool open() override;
        bool isConnected() override;

@@ -23,12 +23,12 @@
 namespace firebolt {
 namespace common {
 
-IOperationState* StateFactory::CreateOperationState(uint64_t requestId) {
-    return new OperationState(requestId);
+std::shared_ptr<IOperationState> StateFactory::CreateOperationState(uint64_t requestId) {
+    return std::make_shared<OperationState>(requestId);
 }
 
-ISubscriptionState* StateFactory::CreateSubscriptionState(uint64_t subscriptionId) {
-    return new SubscriptionState(subscriptionId);
+std::shared_ptr<ISubscriptionState> StateFactory::CreateSubscriptionState(uint64_t subscriptionId) {
+    return std::make_shared<SubscriptionState>(subscriptionId);
 }
 
 } // namespace common
