@@ -79,6 +79,12 @@ bool SecureTransport::open() {
         s_instanceRegistry[m_client] = this;
     }
 
+    // Register this instance before enabling notifications
+    {
+        std::lock_guard<std::mutex> lock(s_registryMutex);
+        s_instanceRegistry[m_client] = this;
+    }
+
     {
         std::lock_guard<std::mutex> lock(m_callbackMutex);
         if (m_messageCallback) {
