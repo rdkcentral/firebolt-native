@@ -21,6 +21,7 @@
 #include <functional>
 #include <vector>
 #include <cstdint>
+#include <string>
 
 namespace firebolt {
 

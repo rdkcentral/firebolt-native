@@ -79,6 +79,9 @@ private:
     // Connection state (atomic for thread safety)
     std::atomic<bool> m_connected;
 
+    // Mutex protecting callback assignment and snapshotting
+    mutable std::mutex m_callbackMutex;
+
     // C++ callbacks
     std::function<void(bool, const std::string&)> m_connectionCallback;
     std::function<void(const std::vector<uint8_t>&)> m_messageCallback;
