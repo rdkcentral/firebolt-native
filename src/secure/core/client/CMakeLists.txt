@@ -14,7 +14,7 @@ target_include_directories(firebolt-secure-client PRIVATE
 
 target_link_libraries(firebolt-secure-client PUBLIC
     firebolt-common
-    firebolt-proto
+    EyilProtocol::EyilProtocol
 )
 
 # Unit tests
@@ -28,7 +28,7 @@ if(GTest_FOUND)
     target_link_libraries(test_secure_client PRIVATE
         firebolt-secure-client
         firebolt-common
-        firebolt-proto
+        EyilProtocol::EyilProtocol
         GTest::gtest
         GTest::gtest_main
     )

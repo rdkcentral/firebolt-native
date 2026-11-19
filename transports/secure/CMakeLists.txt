@@ -17,3 +17,8 @@ target_include_directories(firebolt-secure-transport PRIVATE
 
 # Set C++ standard
 target_compile_features(firebolt-secure-transport PUBLIC cxx_std_17)
+
+# Link EyilClient for secure transport
+target_link_libraries(firebolt-secure-transport PUBLIC
+    EyilClient::EyilClient
+)
