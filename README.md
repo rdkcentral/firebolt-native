@@ -132,6 +132,7 @@ docker build -t firebolt-native-build .
 docker run --rm \
     -v /path/to/eyil-secure-gateway:/workspace/eyil-secure-gateway \
     -v /path/to/firebolt-native:/workspace/firebolt-native \
+    -v /path/to/firebolt-build:/workspace/build \
     -e EYIL_GATEWAY_DIR=/workspace/eyil-secure-gateway \
     firebolt-native-build \
     /workspace/firebolt-native/build-docker.sh
