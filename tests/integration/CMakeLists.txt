@@ -13,7 +13,7 @@ if(GTest_FOUND)
     target_link_libraries(test_core_lifecycle PRIVATE
         firebolt-core-client
         firebolt-common
-        firebolt-proto
+        EyilProtocol::EyilProtocol
         firebolt-example-transport
         GTest::gtest
         GTest::gtest_main
@@ -34,7 +34,7 @@ if(GTest_FOUND)
         firebolt-core-client
         firebolt-secure-client
         firebolt-common
-        firebolt-proto
+        EyilProtocol::EyilProtocol
         GTest::gtest
         GTest::gtest_main
     )

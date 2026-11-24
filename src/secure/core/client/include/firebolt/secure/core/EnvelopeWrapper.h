@@ -30,7 +30,7 @@ namespace core {
  * @brief Converts between JSON-RPC strings and the Protobuf RPC envelope
  *
  * Envelope fields:
- * - RpcRequest: request_id (uint64), service (RPC_SERVICE_JSON_RPC),
+ * - RpcRequest: request_id (uint64), service (RPC_SERVICE_CORE),
  *   schema_version, and payload (serialized CoreRequest with id, method, params)
  * - RpcResponse: request_id (uint64), service, schema_version, status (RPC_STATUS_OK
  *   on success), and payload (serialized CoreResponse holding the JSON-RPC result or error)

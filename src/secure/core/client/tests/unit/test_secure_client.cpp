@@ -22,8 +22,8 @@
 #include "firebolt/secure/core/EnvelopeWrapper.h"
 #include "firebolt/secure/core/FireboltSecureClient.h"
 #include "firebolt/secure/core/Lifecycle.h"
-#include "firebolt/proto/rpc.pb.h"
-#include "firebolt/proto/core.pb.h"
+#include "eyilprotocol/rpc.pb.h"
+#include "eyilprotocol/core.pb.h"
 
 using firebolt::secure::core::EnvelopeWrapper;
 using firebolt::secure::core::FireboltSecureClient;
@@ -53,7 +53,7 @@ std::vector<uint8_t> MakeResponse(uint64_t requestId, RpcStatus status, const st
     // Helper builds the RpcResponse envelope the device side would send back
     RpcResponse response;
     response.set_request_id(requestId);
-    response.set_service(RPC_SERVICE_JSON_RPC);
+    response.set_service(RPC_SERVICE_CORE);
     response.set_schema_version(1);
     response.set_status(status);
     response.set_payload(coreJson);
@@ -70,7 +70,7 @@ TEST(EnvelopeWrapperTest, WrapRequestEncodesJsonRpcEnvelope) {
     RpcRequest envelope;
     ASSERT_TRUE(envelope.ParseFromArray(bytes.data(), static_cast<int>(bytes.size())));
     EXPECT_EQ(envelope.request_id(), 7u);
-    EXPECT_EQ(envelope.service(), RPC_SERVICE_JSON_RPC);
+    EXPECT_EQ(envelope.service(), RPC_SERVICE_CORE);
 
     CoreRequest core;
     ASSERT_TRUE(core.ParseFromString(envelope.payload()));

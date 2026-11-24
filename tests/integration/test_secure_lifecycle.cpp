@@ -10,8 +10,8 @@
 #include "firebolt/IFireboltTextTransport.h"
 #include "firebolt/core/FireboltClient.h"
 #include "firebolt/core/Lifecycle.h"
-#include "firebolt/proto/core.pb.h"
-#include "firebolt/proto/rpc.pb.h"
+#include "eyilprotocol/core.pb.h"
+#include "eyilprotocol/rpc.pb.h"
 #include "firebolt/secure/core/FireboltSecureClient.h"
 #include "firebolt/secure/core/Lifecycle.h"
 
@@ -92,7 +92,7 @@ private:
         core.SerializeToString(&corePayload);
         RpcResponse response;
         response.set_request_id(requestId);
-        response.set_service(RPC_SERVICE_JSON_RPC);
+        response.set_service(RPC_SERVICE_CORE);
         response.set_schema_version(1);
         response.set_status(RPC_STATUS_OK);
         response.set_payload(corePayload);
@@ -210,7 +210,7 @@ private:
         core.SerializeToString(&corePayload);
         RpcResponse response;
         response.set_request_id(requestId);
-        response.set_service(RPC_SERVICE_JSON_RPC);
+        response.set_service(RPC_SERVICE_CORE);
         response.set_schema_version(1);
         response.set_status(RPC_STATUS_OK);
         response.set_payload(corePayload);

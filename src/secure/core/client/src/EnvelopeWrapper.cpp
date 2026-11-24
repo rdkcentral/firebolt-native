@@ -17,8 +17,8 @@
  */
 
 #include "firebolt/secure/core/EnvelopeWrapper.h"
-#include "firebolt/proto/rpc.pb.h"
-#include "firebolt/proto/core.pb.h"
+#include "eyilprotocol/rpc.pb.h"
+#include "eyilprotocol/core.pb.h"
 #include <nlohmann/json.hpp>
 
 namespace firebolt {
@@ -51,7 +51,7 @@ std::vector<uint8_t> EnvelopeWrapper::WrapRequest(uint64_t requestId, const std:
 
     RpcRequest rpcRequest;
     rpcRequest.set_request_id(requestId);
-    rpcRequest.set_service(RPC_SERVICE_JSON_RPC);
+    rpcRequest.set_service(RPC_SERVICE_CORE);
     rpcRequest.set_schema_version(kJsonRpcSchemaVersion);
     rpcRequest.set_payload(coreRequest.SerializeAsString());
 
