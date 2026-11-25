@@ -121,3 +121,15 @@ endif()
 
 # Integration tests (includes both Eyil-dependent and WebSocket-only tests)
 add_subdirectory(tests/integration)
+
+# Custom command to run the header generator
+# Usage: cmake --build . --target generate-headers
+add_custom_target(generate-headers
+    COMMAND ${CMAKE_COMMAND} -E env PYTHONPATH=${CMAKE_SOURCE_DIR}/scripts
+        ${Python3_EXECUTABLE} ${CMAKE_SOURCE_DIR}/scripts/generate_headers.py
+        --spec-dir ${CMAKE_SOURCE_DIR}/openspec/specs/api/core
+        --output-dir ${CMAKE_SOURCE_DIR}/include/firebolt/core
+        --test-dir ${CMAKE_SOURCE_DIR}/tests/integration
+    COMMENT "Generating C++ headers from OpenSpec specifications"
+    VERBATIM
+)

@@ -84,6 +84,28 @@ if(GTest_FOUND)
     )
 
     add_test(NAME test_websocket_lifecycle COMMAND test_websocket_lifecycle)
+
+    # Generated core module integration tests (does not require Eyil)
+    foreach(module accessibility actions advertising device discovery display lifecycle2 localization metrics network shared videooutput)
+        add_executable(test_core_${module}
+            test_core_${module}.cpp
+        )
+
+        target_link_libraries(test_core_${module} PRIVATE
+            firebolt-core-client
+            firebolt-common
+            firebolt-example-transport
+            GTest::gtest
+            GTest::gtest_main
+        )
+
+        target_include_directories(test_core_${module} PRIVATE
+            ${CMAKE_SOURCE_DIR}/include
+            ${CMAKE_SOURCE_DIR}/transports/example/include
+        )
+
+        add_test(NAME test_core_${module} COMMAND test_core_${module})
+    endforeach()
 else()
     message(STATUS "GTest not found - skipping integration tests")
 endif()

@@ -505,3 +505,66 @@ All source files must include the Apache 2.0 license header at the top:
 ## License Header Requirement
 
 All new source files (.h and .cpp) must include the Apache 2.0 license header shown above. This ensures consistent licensing across the codebase and compliance with RDK Management's licensing requirements.
+
+## API Header Generator
+
+The project includes a Python-based generator that produces C++ headers from OpenSpec YAML specifications.
+
+### Running the Generator
+
+**Prerequisites:**
+- Python 3.7 or higher
+- Virtual environment for Python dependencies
+
+**Setup:**
+```bash
+# Create virtual environment in scripts directory
+cd scripts
+python3 -m venv venv
+source venv/bin/activate  # On Windows: venv\Scripts\activate
+
+# Install dependencies
+pip install -r requirements.txt
+
+# Verify no vulnerabilities
+pip-audit -r requirements.txt
+```
+
+**Generate headers:**
+```bash
+# From the repository root
+scripts/venv/bin/python scripts/generate_headers.py \
+    --spec-dir openspec/specs/api/core \
+    --output-dir include/firebolt/core \
+    --test-dir tests/integration
+```
+
+### Spec Sync Workflow
+
+API specs are copied from firebolt-js-client to the local `openspec/specs/api/core/` directory. To update specs when firebolt-js-client changes:
+
+1. Copy updated specs from firebolt-js-client:
+   ```bash
+   cp /path/to/firebolt-js-client/openspec/specs/api/<module>/spec.md \
+      openspec/specs/api/core/<module>/spec.md
+   ```
+
+2. Regenerate headers:
+   ```bash
+   scripts/venv/bin/python scripts/generate_headers.py \
+       --spec-dir openspec/specs/api/core \
+       --output-dir include/firebolt/core \
+       --test-dir tests/integration
+   ```
+
+3. Review and commit the updated generated files
+
+### Security
+
+Dependencies are pinned in `scripts/requirements.txt` to ensure reproducible builds. Always run vulnerability scanning before using the generator:
+
+```bash
+pip-audit -r scripts/requirements.txt
+```
+
+If vulnerabilities are found, update the pinned versions in requirements.txt and reinstall dependencies.
