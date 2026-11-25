@@ -71,7 +71,6 @@ if(GTest_FOUND)
     target_link_libraries(test_websocket_lifecycle PRIVATE
         firebolt-core-client
         firebolt-common
-        firebolt-proto
         GTest::gtest
         GTest::gtest_main
     )

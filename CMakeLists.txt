@@ -48,9 +48,18 @@ if(NOT nlohmann_json_FOUND)
     endif()
 endif()
 
-# Find EyilProtocol and EyilClient from eyil-secure-gateway
-find_package(EyilProtocol REQUIRED)
-find_package(EyilClient REQUIRED)
+# Find EyilProtocol and EyilClient from eyil-secure-gateway (optional)
+find_package(EyilProtocol QUIET)
+find_package(EyilClient QUIET)
+
+# Set a flag to indicate whether eyil is available
+if(EyilProtocol_FOUND AND EyilClient_FOUND)
+    set(BUILD_WITH_EYIL TRUE)
+    message(STATUS "EyilProtocol and EyilClient found - building with eyil support")
+else()
+    set(BUILD_WITH_EYIL FALSE)
+    message(STATUS "EyilProtocol or EyilClient not found - skipping eyil-dependent components")
+endif()
 
 # Include compiler flags
 include(cmake/CompilerFlags.cmake)
@@ -63,13 +72,17 @@ add_subdirectory(src/common)
 
 # Surface clients
 add_subdirectory(src/core)
-add_subdirectory(src/secure/core/client)
-add_subdirectory(src/crypto)
-add_subdirectory(src/media)
+if(BUILD_WITH_EYIL)
+    add_subdirectory(src/secure/core/client)
+    add_subdirectory(src/crypto)
+    add_subdirectory(src/media)
+endif()
 
 # Transports
 add_subdirectory(transports/example)
-add_subdirectory(transports/secure)
+if(BUILD_WITH_EYIL)
+    add_subdirectory(transports/secure)
+endif()
 
 # WebSocket transport (optional, requires WebSocket++ and Asio)
 find_package(WebSocketPP QUIET)
@@ -100,4 +113,6 @@ if(WebSocketPP_FOUND AND Asio_FOUND AND BUILD_TESTING)
 endif()
 
 # Integration tests
-add_subdirectory(tests/integration)
+if(BUILD_WITH_EYIL)
+    add_subdirectory(tests/integration)
+endif()

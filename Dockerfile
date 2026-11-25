@@ -20,13 +20,23 @@ RUN apt-get update && apt-get install -y \
     wget \
     libssl-dev \
     zlib1g-dev \
+    protobuf-compiler \
     && rm -rf /var/lib/apt/lists/*
 
-# Install Protobuf (from apt for eyil, may need newer for websocket)
+# Install Protobuf from source for CMake config support (required by CMakeLists.txt)
 RUN apt-get update && apt-get install -y \
-    protobuf-compiler \
-    libprotobuf-dev \
-    && rm -rf /var/lib/apt/lists/*
+    wget \
+    && rm -rf /var/lib/apt/lists/* && \
+    wget https://github.com/protocolbuffers/protobuf/releases/download/v21.12/protobuf-cpp-3.21.12.tar.gz && \
+    tar xzf protobuf-cpp-3.21.12.tar.gz && \
+    cd protobuf-3.21.12 && \
+    mkdir build && cd build && \
+    cmake .. -DCMAKE_INSTALL_PREFIX=/usr/local -DBUILD_SHARED_LIBS=ON -DCMAKE_BUILD_TYPE=Release && \
+    make -j$(nproc) && \
+    make install && \
+    ldconfig && \
+    cd /tmp && \
+    rm -rf protobuf-3.21.12 protobuf-cpp-3.21.12.tar.gz
 
 # Install ZeroMQ (for eyil implementation)
 RUN apt-get update && apt-get install -y \

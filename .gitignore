@@ -21,3 +21,6 @@ Makefile
 
 # Ignored generated protobuf headers
 include/firebolt/proto/
+
+build-eyil/
+build-websocket/
