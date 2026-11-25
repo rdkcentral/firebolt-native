@@ -23,47 +23,51 @@ endif()
 find_package(GTest QUIET)
 
 if(GTest_FOUND)
-    # Core path integration tests
-    add_executable(test_core_lifecycle
-        test_core_lifecycle.cpp
-    )
+    # Core path integration tests (requires Eyil)
+    if(BUILD_WITH_EYIL)
+        add_executable(test_core_lifecycle
+            test_core_lifecycle.cpp
+        )
 
-    target_link_libraries(test_core_lifecycle PRIVATE
-        firebolt-core-client
-        firebolt-common
-        EyilProtocol::EyilProtocol
-        firebolt-example-transport
-        GTest::gtest
-        GTest::gtest_main
-    )
+        target_link_libraries(test_core_lifecycle PRIVATE
+            firebolt-core-client
+            firebolt-common
+            EyilProtocol::EyilProtocol
+            firebolt-example-transport
+            GTest::gtest
+            GTest::gtest_main
+        )
 
-    target_include_directories(test_core_lifecycle PRIVATE
-        ${CMAKE_SOURCE_DIR}/include
-    )
+        target_include_directories(test_core_lifecycle PRIVATE
+            ${CMAKE_SOURCE_DIR}/include
+        )
 
-    add_test(NAME test_core_lifecycle COMMAND test_core_lifecycle)
+        add_test(NAME test_core_lifecycle COMMAND test_core_lifecycle)
+    endif()
 
-    # Secure path and core/secure parity integration tests
-    add_executable(test_secure_lifecycle
-        test_secure_lifecycle.cpp
-    )
+    # Secure path and core/secure parity integration tests (requires Eyil)
+    if(BUILD_WITH_EYIL)
+        add_executable(test_secure_lifecycle
+            test_secure_lifecycle.cpp
+        )
 
-    target_link_libraries(test_secure_lifecycle PRIVATE
-        firebolt-core-client
-        firebolt-secure-client
-        firebolt-common
-        EyilProtocol::EyilProtocol
-        GTest::gtest
-        GTest::gtest_main
-    )
+        target_link_libraries(test_secure_lifecycle PRIVATE
+            firebolt-core-client
+            firebolt-secure-client
+            firebolt-common
+            EyilProtocol::EyilProtocol
+            GTest::gtest
+            GTest::gtest_main
+        )
 
-    target_include_directories(test_secure_lifecycle PRIVATE
-        ${CMAKE_SOURCE_DIR}/include
-    )
+        target_include_directories(test_secure_lifecycle PRIVATE
+            ${CMAKE_SOURCE_DIR}/include
+        )
 
-    add_test(NAME test_secure_lifecycle COMMAND test_secure_lifecycle)
+        add_test(NAME test_secure_lifecycle COMMAND test_secure_lifecycle)
+    endif()
 
-    # WebSocket transport integration tests
+    # WebSocket transport integration tests (does not require Eyil)
     add_executable(test_websocket_lifecycle
         test_websocket_lifecycle.cpp
     )

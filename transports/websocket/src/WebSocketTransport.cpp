@@ -56,7 +56,16 @@ WebSocketTransport::~WebSocketTransport() {
 
 bool WebSocketTransport::open() {
     if (m_endpoint.empty()) {
-        m_lastError = "FIREBOLT_ENDPOINT environment variable not set";
+        std::string errorInfo = "FIREBOLT_ENDPOINT environment variable not set";
+        m_lastError = errorInfo;
+        
+        // Notify callback of synchronous error
+        {
+            std::lock_guard<std::mutex> callbackLock(m_callbackMutex);
+            if (m_connectionCallback) {
+                m_connectionCallback(false, errorInfo);
+            }
+        }
         return false;
     }
 
@@ -156,11 +165,24 @@ bool WebSocketTransport::open() {
         client_t::connection_ptr con = m_client->get_connection(m_endpoint, ec);
 
         if (ec) {
-            m_lastError = "Failed to create connection: " + ec.message();
+            std::string errorInfo = "Failed to create connection: " + ec.message();
+            m_lastError = errorInfo;
+            
+            // Notify callback of synchronous error (before io_service thread is started)
+            {
+                std::lock_guard<std::mutex> callbackLock(m_callbackMutex);
+                if (m_connectionCallback) {
+                    m_connectionCallback(false, errorInfo);
+                }
+            }
             return false;
         }
 
-        m_connection = con;
+        // Assign connection under lock to prevent race with send()
+        {
+            std::lock_guard<std::mutex> lock(m_connectionMutex);
+            m_connection = con;
+        }
 
         // Start io_context in background thread
         m_work = std::make_unique<asio::io_context::work>(*m_io_service);
@@ -203,12 +225,18 @@ void WebSocketTransport::onConnectionStatusChanged(
 }
 
 bool WebSocketTransport::send(const std::string& message) {
-    if (!m_connected.load() || !m_connection) {
-        return false;
+    // Take a snapshot of the connection under lock to prevent race with cleanup
+    client_t::connection_ptr connection;
+    {
+        std::lock_guard<std::mutex> lock(m_connectionMutex);
+        if (!m_connected.load() || !m_connection) {
+            return false;
+        }
+        connection = m_connection;
     }
 
     try {
-        m_client->send(m_connection, message, websocketpp::frame::opcode::text);
+        m_client->send(connection, message, websocketpp::frame::opcode::text);
         return true;
     } catch (const std::exception& e) {
         m_lastError = std::string("Send failed: ") + e.what();
@@ -223,14 +251,21 @@ void WebSocketTransport::onMessageReceived(
 }
 
 void WebSocketTransport::internalCleanup() {
-    // First, close the connection if it exists
-    if (m_connection) {
+    // Close and reset connection under lock to prevent race with send()
+    client_t::connection_ptr connectionToClose;
+    {
+        std::lock_guard<std::mutex> lock(m_connectionMutex);
+        connectionToClose = m_connection;
+        m_connection.reset();
+    }
+
+    // Close the connection outside the lock to avoid holding it during close
+    if (connectionToClose) {
         try {
-            m_client->close(m_connection, websocketpp::close::status::normal, "Closing");
+            m_client->close(connectionToClose, websocketpp::close::status::normal, "Closing");
         } catch (...) {
             // Ignore close errors during disconnect
         }
-        m_connection.reset();
     }
 
     // Stop io_service by releasing work guard

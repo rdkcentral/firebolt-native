@@ -119,7 +119,5 @@ if(WebSocketPP_FOUND AND Asio_FOUND AND BUILD_TESTING)
     target_link_libraries(mock_websocket_server PRIVATE ssl crypto)
 endif()
 
-# Integration tests
-if(BUILD_WITH_EYIL)
-    add_subdirectory(tests/integration)
-endif()
+# Integration tests (includes both Eyil-dependent and WebSocket-only tests)
+add_subdirectory(tests/integration)
