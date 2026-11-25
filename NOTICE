@@ -7,6 +7,21 @@ listed below. Your use of this material within the component is also subject to 
 conditions of these licenses. The LICENSE file contains the text of all the licenses which apply
 within this component.
 
+===========================================================================
+
+This project includes the following third-party components:
+
+nlohmann::json
+Copyright (c) 2013-2025 Niels Lohmann
+Licensed under the MIT License
+https://github.com/nlohmann/json
+
+WebSocket++
+Copyright (c) 2014, Peter Thorson. All rights reserved.
+Licensed under the BSD 3-clause license
+https://github.com/zaphoyd/websocketpp
+
+For complete license texts, refer to the LICENSE file or the respective project repositories.
 
 Material from OpenSpec is:
 Copyright (c) 2024 OpenSpec Contributors

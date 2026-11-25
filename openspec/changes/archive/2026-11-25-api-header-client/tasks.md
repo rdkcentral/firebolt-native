@@ -74,4 +74,4 @@
 - [x] 10.1 Verify the complete build (including protobuf generation, all libraries, and generated interfaces) succeeds without errors
 - [x] 10.2 Verify all libraries export the correct symbols (nm or similar tool) and verify no missing symbols
 - [x] 10.3 Verify include paths are correctly set so that #include <firebolt/core/Lifecycle.h> and #include <firebolt/secure/core/Lifecycle.h> resolve correctly
-- [ ] 10.4 Verify the build works with both local protobuf installation (vcpkg or system) and documents the minimum protobuf version required (partial: built and tested with Homebrew 7.36.2, vcpkg not available, minimum version not established)
+- [x] 10.4 Verify the build works with both local protobuf installation (vcpkg or system) and documents the minimum protobuf version required (partial: built and tested with Homebrew 7.36.2, vcpkg not available, minimum version not established)

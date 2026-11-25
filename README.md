@@ -7,17 +7,20 @@ This repository contains the Firebolt C++ client library for multiple surfaces.
 ```
 firebolt-native/
 ├── CMakeLists.txt                          # Root CMake configuration
+├── Dockerfile                              # Docker image for building both implementations
+├── docker-compose.yml                      # Docker Compose configuration
+├── docker-build.sh                         # Helper script for Docker builds
+├── build-docker.sh                         # Script for building with eyil-secure-gateway
 ├── cmake/                                  # CMake modules
 │   ├── CompilerFlags.cmake                # Common compiler flags
-│   ├── FindSoup.cmake                      # Soup library (placeholder)
 │   ├── FindProtobuf.cmake                  # Protobuf library (placeholder)
 │   ├── FindGRPC.cmake                      # gRPC library (placeholder)
-│   └── FindZMQ.cmake                       # ZMQ library (placeholder)
+│   ├── FindZMQ.cmake                       # ZMQ library (placeholder)
+│   ├── FindWebSocketPP.cmake               # WebSocket++ library finder
+│   └── FindAsio.cmake                      # Asio library finder
 │
 ├── include/                                # Public headers
 │   └── firebolt/
-│       ├── IFireboltTextTransport.h        # Text-based transport interface (WebSocket)
-│       └── IFireboltBufferTransport.h      # Buffer-based transport interface (Protobuf/UDS)
 │       ├── IFireboltTextTransport.h        # Text-based transport interface (WebSocket)
 │       └── IFireboltBufferTransport.h      # Buffer-based transport interface (Protobuf/UDS)
 │
@@ -38,7 +41,7 @@ firebolt-native/
 │   │   │       └── CoreClient.cpp
 │   │   └── generated/                     # Auto-generated headers
 │   │
-│   ├── crypto/                             # Firebolt Crypto
+│   ├── crypto/                             # Firebolt Crypto (requires eyil)
 │   │   ├── client/                         # CryptoClient library
 │   │   │   ├── include/firebolt/crypto/
 │   │   │   │   └── CryptoClient.h
@@ -46,7 +49,7 @@ firebolt-native/
 │   │   │       └── CryptoClient.cpp
 │   │   └── generated/                     # Auto-generated headers
 │   │
-│   └── media/                              # Firebolt Media
+│   └── media/                              # Firebolt Media (requires eyil)
 │       ├── client/                         # MediaClient library
 │       │   ├── include/firebolt/media/
 │       │   │   └── MediaClient.h
@@ -55,25 +58,60 @@ firebolt-native/
 │       └── generated/                     # Auto-generated headers
 │
 ├── transports/                             # Transport implementations
-│   └── example/                           # Example in-memory transport
+│   ├── example/                           # Example in-memory transport
+│   │   ├── include/firebolt/transport/
+│   │   │   └── ExampleTransport.h
+│   │   └── src/
+│   │       └── ExampleTransport.cpp
+│   ├── secure/                            # Secure transport (requires eyil)
+│   │   ├── include/firebolt/transport/
+│   │   │   └── SecureTransport.h
+│   │   └── src/
+│   │       └── SecureTransport.cpp
+│   └── websocket/                         # WebSocket transport
 │       ├── include/firebolt/transport/
-│       │   └── ExampleTransport.h
-│       └── src/
-│           └── ExampleTransport.cpp
+│       │   └── WebSocketTransport.h
+│       ├── src/
+│       │   └── WebSocketTransport.cpp
+│       └── tests/
+│           └── unit/
+│               └── test_websocket_transport.cpp
 │
 └── tests/
-    └── integration/                        # Integration tests
+    └── integration/                        # Integration tests (requires eyil)
+        ├── test_core_lifecycle.cpp
+        ├── test_secure_lifecycle.cpp
+        └── test_websocket_lifecycle.cpp
 ```
 
 ## Build Instructions
 
-### Prerequisites
+### Quick Start (Recommended)
 
+The easiest way to build and test the project is using Docker with the provided helper scripts:
+
+```bash
+# Build WebSocket transport implementation
+./docker-build.sh build-ws
+
+# Test WebSocket transport implementation
+./docker-build.sh test-ws
+
+# Build Eyil protocol implementation (requires eyil-secure-gateway)
+./docker-build.sh build-eyil
+
+# Open interactive shell in container
+./docker-build.sh shell
+```
+
+### Local Build
+
+**Prerequisites:**
 - CMake 3.15 or higher
 - C++17 compatible compiler
 - Protobuf (found via `find_package(Protobuf REQUIRED)`). Tested with 7.36.2 from Homebrew. No minimum version is enforced yet.
 
-### Building
+**Building:**
 
 ```bash
 # Configure the project
@@ -86,9 +124,7 @@ cmake --build build
 cmake --build build --clean-first
 ```
 
-### Building Libraries
-
-The three client libraries can be built on their own:
+**Building specific libraries:**
 
 ```bash
 cmake --build build --target firebolt-common firebolt-core-client firebolt-secure-client
@@ -100,9 +136,7 @@ Outputs (`.dylib` on macOS, `.so` on Linux):
 - `build/src/core/client/libfirebolt-core-client`
 - `build/src/secure/core/client/libfirebolt-secure-client`
 
-### Out-of-tree Build
-
-The project supports out-of-tree builds:
+**Out-of-tree build:**
 
 ```bash
 # Build in a different directory
@@ -111,6 +145,26 @@ cmake --build /tmp/firebolt-build
 ```
 
 ### Docker Build
+
+The Dockerfile supports building both the eyil protocol implementation and the websocket transport implementation.
+
+#### Implementation Options
+
+The project supports two transport implementations:
+
+1. **WebSocket Transport** - Local implementation using WebSocket++ and Asio
+   - Use for development and testing without external dependencies
+   - No additional repositories required
+   - Supports JSON-RPC over WebSocket
+
+2. **Eyil Protocol** - Production implementation using eyil-secure-gateway
+   - Use for production builds with the full protocol stack
+   - Requires access to eyil-secure-gateway repository
+   - Supports Protobuf over ZeroMQ
+
+The build system automatically detects which dependencies are available and builds the appropriate components.
+
+#### Building with Eyil Protocol
 
 For local Linux builds that mirror the Yocto environment, use the provided Dockerfile and build script. This is a two-stage process:
 
@@ -121,7 +175,13 @@ For local Linux builds that mirror the Yocto environment, use the provided Docke
 - Docker installed locally
 - Access to eyil-secure-gateway repository
 
-**Build steps:**
+**Using helper script (recommended):**
+
+```bash
+./docker-build.sh build-eyil
+```
+
+**Manual build steps:**
 
 ```bash
 # Build the Docker image
@@ -145,10 +205,106 @@ The build script:
 
 **Note:** The script requires sudo privileges during the eyil-secure-gateway installation step.
 
+#### Building with WebSocket Transport
+
+For building the websocket transport implementation (without eyil), use the Dockerfile directly:
+
+**Using helper script (recommended):**
+
+```bash
+# Build
+./docker-build.sh build-ws
+
+# Run tests
+./docker-build.sh test-ws
+```
+
+**Manual build steps:**
+
+```bash
+# Build the Docker image
+docker build -t firebolt-native-ws .
+
+# Build the project inside the container
+docker run --rm \
+    -v $(pwd):/workspace \
+    firebolt-native-ws \
+    bash -c "cd /workspace && mkdir build && cd build && cmake .. -DBUILD_TESTING=ON && make"
+
+# Run the websocket transport tests
+docker run --rm \
+    -v $(pwd):/workspace \
+    firebolt-native-ws \
+    bash -c "cd /workspace/build && ./transports/websocket/test_websocket_transport"
+```
+
+**Dockerfile includes:**
+- WebSocket++ 0.8.2 (header-only library)
+- Asio 1.12.2 (standalone, header-only library)
+- Protobuf 3.21.12 (for protobuf_generate_cpp support)
+- Google Test (for testing)
+
+The CMake build system conditionally builds the websocket transport if WebSocket++ and Asio are found.
+
+#### Using Docker Compose
+
+For more complex workflows, use docker-compose with profiles:
+
+```bash
+# Build websocket transport
+docker-compose --profile websocket run websocket-build
+
+# Test websocket transport
+docker-compose --profile websocket run websocket-test
+
+# Build eyil protocol
+docker-compose --profile eyil run eyil-build
+
+# Open interactive shell
+docker-compose run shell
+```
+
+#### Available Helper Scripts
+
+**docker-build.sh** - Main helper script for Docker builds:
+
+```bash
+./docker-build.sh build-ws     # Build websocket transport
+./docker-build.sh test-ws      # Test websocket transport
+./docker-build.sh build-eyil   # Build eyil protocol (requires eyil-secure-gateway)
+./docker-build.sh shell        # Open interactive shell
+./docker-build.sh help         # Show help message
+```
+
 ### Running Tests
 
 Tests use GoogleTest. If it is not installed, CMake skips them with a "GTest not found" message
 and ctest reports no tests. On macOS, install it with `brew install googletest`.
+
+#### Running Tests with Docker
+
+The easiest way to run tests is using the helper scripts:
+
+```bash
+# Test WebSocket transport
+./docker-build.sh test-ws
+```
+
+For eyil protocol tests, build first then run ctest:
+
+```bash
+# Build with eyil
+./docker-build.sh build-eyil
+
+# Run tests in the container
+docker run --rm \
+    -v $(pwd):/workspace/firebolt-native \
+    -v "$(pwd)/build-eyil":/workspace/build \
+    firebolt-native-ws \
+    bash -c "cd /workspace/build/firebolt-native && ctest --output-on-failure"
+```
+
+#### Running Tests Locally
 
 Run the tests with the helper script, which configures, builds, and runs ctest:
 
@@ -162,10 +318,10 @@ scripts/run-tests.sh all out-dir            # use another build directory (defau
 The second argument is the build directory, relative to the repository root, and works with every suite.
 The script stops at the first failed build step and exits non-zero if any test fails.
 
-| Suite       | Tests                                          |
-|-------------|------------------------------------------------|
-| unit        | `test_secure_client`                           |
-| integration | `test_core_lifecycle`, `test_secure_lifecycle` |
+| Suite       | Tests (requires eyil)                     | Tests (websocket)          |
+|-------------|--------------------------------------------|----------------------------|
+| unit        | `test_secure_client`                       | `test_websocket_transport` |
+| integration | `test_core_lifecycle`, `test_secure_lifecycle` | -                          |
 
 To run ctest directly, build first and then run it against the build directory:
 
@@ -175,14 +331,10 @@ cmake --build build
 ctest --test-dir build --output-on-failure
 ```
 
+**Note:** Integration tests require eyil-secure-gateway to be built and installed. WebSocket transport tests can run without eyil dependencies.
+
 ## Transport Architecture
 
-The library uses runtime dependency injection for transports with protocol-specific interfaces:
-
-- **IFireboltTextTransport**: For text-based protocols (e.g., WebSocket with JSON-RPC)
-- **IFireboltBufferTransport**: For buffer-based protocols (e.g., Protobuf over Unix Domain Socket)
-
-Each surface client accepts the appropriate transport interface:
 The library uses runtime dependency injection for transports with protocol-specific interfaces:
 
 - **IFireboltTextTransport**: For text-based protocols (e.g., WebSocket with JSON-RPC)
@@ -211,7 +363,6 @@ This enables:
 - Testability with mock transports
 - Partner extensibility with custom transports
 - Flexible protocol selection at runtime
-- Type-safe separation between text and binary protocols
 - Type-safe separation between text and binary protocols
 
 ## Adding a New Surface
@@ -256,9 +407,6 @@ To add a new surface:
 To implement a custom transport, choose the appropriate interface based on your protocol:
 
 ### Text-Based Transport (WebSocket, JSON-RPC)
-To implement a custom transport, choose the appropriate interface based on your protocol:
-
-### Text-Based Transport (WebSocket, JSON-RPC)
 
 1. Create the directory structure:
    ```
@@ -280,9 +428,7 @@ To implement a custom transport, choose the appropriate interface based on your 
    ```
 
 3. Inherit from `IFireboltTextTransport`:
-3. Inherit from `IFireboltTextTransport`:
    ```cpp
-   #include "firebolt/IFireboltTextTransport.h"
    #include "firebolt/IFireboltTextTransport.h"
 
    namespace firebolt {
@@ -298,47 +444,12 @@ To implement a custom transport, choose the appropriate interface based on your 
        void onMessageReceived(
            std::function<void(const std::string&)> callback) override;
        void disconnect() override;
-       bool open() override;
-       bool isConnected() override;
-       void onConnectionStatusChanged(
-           std::function<void(bool, const std::string&)> callback) override;
-       bool send(const std::string& message) override;
-       void onMessageReceived(
-           std::function<void(const std::string&)> callback) override;
-       void disconnect() override;
    };
 
    } // namespace transport
    } // namespace firebolt
    ```
 
-### Buffer-Based Transport (Protobuf, UDS)
-
-Follow the same structure but inherit from `IFireboltBufferTransport`:
-
-```cpp
-#include "firebolt/IFireboltBufferTransport.h"
-
-namespace firebolt {
-namespace transport {
-
-class CustomBufferTransport : public IFireboltBufferTransport {
-public:
-    bool open() override;
-    bool isConnected() override;
-    void onConnectionStatusChanged(
-        std::function<void(bool, const std::string&)> callback) override;
-    bool send(const std::vector<uint8_t>& data) override;
-    void onMessageReceived(
-        std::function<void(const std::vector<uint8_t>&)> callback) override;
-    void disconnect() override;
-};
-
-} // namespace transport
-} // namespace firebolt
-```
-
-4. Implement the methods according to your protocol.
 ### Buffer-Based Transport (Protobuf, UDS)
 
 Follow the same structure but inherit from `IFireboltBufferTransport`:

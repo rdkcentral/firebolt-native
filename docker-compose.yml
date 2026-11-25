@@ -1,0 +1,65 @@
+services:
+  # Build service for websocket transport implementation
+  websocket-build:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    volumes:
+      - .:/workspace
+      - build-ws:/workspace/build
+    working_dir: /workspace
+    command: bash -c "mkdir -p build && cd build && cmake .. -DBUILD_TESTING=ON && make"
+    profiles:
+      - websocket
+
+  # Test service for websocket transport
+  websocket-test:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    volumes:
+      - .:/workspace
+      - build-ws:/workspace/build
+    working_dir: /workspace/build
+    command: ./transports/websocket/test_websocket_transport
+    profiles:
+      - websocket
+    depends_on:
+      websocket-build:
+        condition: service_completed_successfully
+
+  # Build service for eyil protocol implementation
+  eyil-build:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    volumes:
+      - .:/workspace
+      - build-eyil:/workspace/build
+      # Mount eyil-secure-gateway if available
+      - ../eyil-secure-gateway:/workspace/eyil-secure-gateway:ro
+    working_dir: /workspace
+    environment:
+      - EYIL_GATEWAY_DIR=/workspace/eyil-secure-gateway
+      - FIREBOLT_NATIVE_DIR=/workspace
+    command: /workspace/build-docker.sh
+    profiles:
+      - eyil
+
+  # Interactive shell for manual builds
+  shell:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    volumes:
+      - .:/workspace
+      - build-shell:/workspace/build
+    working_dir: /workspace
+    stdin_open: true
+    tty: true
+    command: bash
+
+volumes:
+  build-ws:
+  build-eyil:
+  build-shell:
