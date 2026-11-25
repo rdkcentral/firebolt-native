@@ -1,10 +1,49 @@
 # Protobuf definitions and code generation
 
+# Find protoc executable
+find_program(PROTOC protoc)
+if(NOT PROTOC)
+    message(FATAL_ERROR "protoc not found")
+endif()
+
+# Set output directory
+set(PROTO_OUTPUT_DIR "${CMAKE_CURRENT_BINARY_DIR}")
+
 # Generate protobuf files for rpc.proto
-protobuf_generate_cpp(RPC_PROTO_SRCS RPC_PROTO_HDRS rpc.proto)
+set(RPC_PROTO "${CMAKE_CURRENT_SOURCE_DIR}/rpc.proto")
+set(RPC_PROTO_SRC "${PROTO_OUTPUT_DIR}/rpc.pb.cc")
+set(RPC_PROTO_HDR "${PROTO_OUTPUT_DIR}/rpc.pb.h")
+
+add_custom_command(
+    OUTPUT ${RPC_PROTO_SRC} ${RPC_PROTO_HDR}
+    COMMAND ${PROTOC}
+        --cpp_out=${PROTO_OUTPUT_DIR}
+        --proto_path=${CMAKE_CURRENT_SOURCE_DIR}
+        ${RPC_PROTO}
+    DEPENDS ${RPC_PROTO}
+    COMMENT "Generating protobuf files for rpc.proto"
+)
 
 # Generate protobuf files for core.proto
-protobuf_generate_cpp(CORE_PROTO_SRCS CORE_PROTO_HDRS core.proto)
+set(CORE_PROTO "${CMAKE_CURRENT_SOURCE_DIR}/core.proto")
+set(CORE_PROTO_SRC "${PROTO_OUTPUT_DIR}/core.pb.cc")
+set(CORE_PROTO_HDR "${PROTO_OUTPUT_DIR}/core.pb.h")
+
+add_custom_command(
+    OUTPUT ${CORE_PROTO_SRC} ${CORE_PROTO_HDR}
+    COMMAND ${PROTOC}
+        --cpp_out=${PROTO_OUTPUT_DIR}
+        --proto_path=${CMAKE_CURRENT_SOURCE_DIR}
+        ${CORE_PROTO}
+    DEPENDS ${CORE_PROTO}
+    COMMENT "Generating protobuf files for core.proto"
+)
+
+# Set source files for the library
+set(RPC_PROTO_SRCS ${RPC_PROTO_SRC})
+set(RPC_PROTO_HDRS ${RPC_PROTO_HDR})
+set(CORE_PROTO_SRCS ${CORE_PROTO_SRC})
+set(CORE_PROTO_HDRS ${CORE_PROTO_HDR})
 
 # Create include hierarchy in binary directory to match expected includes
 # The code includes these as <firebolt/proto/rpc.pb.h>, but protobuf_generate_cpp

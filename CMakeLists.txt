@@ -4,8 +4,17 @@ project(firebolt-native VERSION 0.1.0 LANGUAGES CXX)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
+# Add cmake directory to CMake module path for find modules
+list(APPEND CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake")
+
+# Add /usr/local to CMAKE prefix path for locally installed libraries
+# This must come before find_package so it finds our installed Protobuf
+list(APPEND CMAKE_PREFIX_PATH "/usr/local")
+set(CMAKE_LIBRARY_PATH "/usr/local/lib" ${CMAKE_LIBRARY_PATH})
+set(CMAKE_INCLUDE_PATH "/usr/local/include" ${CMAKE_INCLUDE_PATH})
+
 # Find Protobuf
-find_package(Protobuf REQUIRED)
+find_package(Protobuf REQUIRED HINTS /usr/local)
 
 # Find abseil (required for Protobuf 7.x, may be provided by build system)
 find_package(absl QUIET)
@@ -60,6 +69,34 @@ add_subdirectory(src/media)
 # Transports
 add_subdirectory(transports/example)
 add_subdirectory(transports/secure)
+
+# WebSocket transport (optional, requires WebSocket++ and Asio)
+find_package(WebSocketPP QUIET)
+find_package(Asio QUIET)
+if(WebSocketPP_FOUND AND Asio_FOUND)
+    add_subdirectory(transports/websocket)
+else()
+    message(STATUS "WebSocket++ or Asio not found - skipping WebSocket transport")
+endif()
+
+# Mock WebSocket server for integration tests (optional, requires WebSocket++ and Asio)
+if(WebSocketPP_FOUND AND Asio_FOUND AND BUILD_TESTING)
+    add_executable(mock_websocket_server
+        tests/integration/mock_websocket_server.cpp
+    )
+    
+    target_include_directories(mock_websocket_server PRIVATE
+        ${WebSocketPP_INCLUDE_DIRS}
+        ${Asio_INCLUDE_DIRS}
+    )
+    
+    target_compile_definitions(mock_websocket_server PRIVATE
+        ASIO_STANDALONE
+        WEBSOCKETPP_STANDALONE_ASIO
+    )
+    
+    target_link_libraries(mock_websocket_server PRIVATE ssl crypto)
+endif()
 
 # Integration tests
 add_subdirectory(tests/integration)

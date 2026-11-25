@@ -9,7 +9,6 @@ firebolt-native/
 ├── CMakeLists.txt                          # Root CMake configuration
 ├── cmake/                                  # CMake modules
 │   ├── CompilerFlags.cmake                # Common compiler flags
-│   ├── FindSoup.cmake                      # Soup library (placeholder)
 │   ├── FindProtobuf.cmake                  # Protobuf library (placeholder)
 │   ├── FindGRPC.cmake                      # gRPC library (placeholder)
 │   └── FindZMQ.cmake                       # ZMQ library (placeholder)
