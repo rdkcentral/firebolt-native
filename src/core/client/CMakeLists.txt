@@ -11,5 +11,5 @@ target_include_directories(firebolt-core-client PUBLIC
 
 target_link_libraries(firebolt-core-client PUBLIC
     firebolt-common
-    firebolt-proto
+    EyilProtocol::EyilProtocol
 )

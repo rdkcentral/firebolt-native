@@ -48,14 +48,15 @@ if(NOT nlohmann_json_FOUND)
     endif()
 endif()
 
+# Find EyilProtocol and EyilClient from eyil-secure-gateway
+find_package(EyilProtocol REQUIRED)
+find_package(EyilClient REQUIRED)
+
 # Include compiler flags
 include(cmake/CompilerFlags.cmake)
 
 # Enable tests before adding subdirectories so each one's add_test() is registered
 enable_testing()
-
-# Protobuf definitions
-add_subdirectory(src/proto)
 
 # Common utilities
 add_subdirectory(src/common)

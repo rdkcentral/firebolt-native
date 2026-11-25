@@ -109,6 +109,41 @@ cmake -S /path/to/firebolt-native -B /tmp/firebolt-build
 cmake --build /tmp/firebolt-build
 ```
 
+### Docker Build
+
+For local Linux builds that mirror the Yocto environment, use the provided Dockerfile and build script. This is a two-stage process:
+
+1. Build and install eyil-secure-gateway (provides EyilProtocol and EyilClient)
+2. Build firebolt-native (consumes the installed packages)
+
+**Prerequisites:**
+- Docker installed locally
+- Access to eyil-secure-gateway repository
+
+**Build steps:**
+
+```bash
+# Build the Docker image
+docker build -t firebolt-native-build .
+
+# Run the two-stage build
+# Set EYIL_GATEWAY_DIR to point to your eyil-secure-gateway checkout
+docker run --rm \
+    -v /path/to/eyil-secure-gateway:/workspace/eyil-secure-gateway \
+    -v /path/to/firebolt-native:/workspace/firebolt-native \
+    -v /path/to/firebolt-build:/workspace/build \
+    -e EYIL_GATEWAY_DIR=/workspace/eyil-secure-gateway \
+    firebolt-native-build \
+    /workspace/firebolt-native/build-docker.sh
+```
+
+The build script:
+1. Configures and builds eyil-secure-gateway with `-DCMAKE_INSTALL_PREFIX=/usr`
+2. Installs eyil-secure-gateway to `/usr` in the container
+3. Configures and builds firebolt-native (which finds EyilProtocol and EyilClient via `find_package`)
+
+**Note:** The script requires sudo privileges during the eyil-secure-gateway installation step.
+
 ### Running Tests
 
 Tests use GoogleTest. If it is not installed, CMake skips them with a "GTest not found" message
