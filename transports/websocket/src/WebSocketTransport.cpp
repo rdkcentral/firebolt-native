@@ -181,13 +181,13 @@ bool WebSocketTransport::open() {
                 // Timeout - connection didn't complete
                 m_lastError = "Connection timeout";
                 lock.unlock();
-                disconnect();
+                internalCleanup();  // Preserve callbacks for reconnection
                 return false;
             }
         }
     } catch (const std::exception& e) {
         m_lastError = std::string("Exception during connect: ") + e.what();
-        disconnect();
+        internalCleanup();  // Preserve callbacks for reconnection
         return false;
     }
 }
