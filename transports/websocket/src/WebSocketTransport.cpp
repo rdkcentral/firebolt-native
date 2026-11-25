@@ -60,8 +60,8 @@ bool WebSocketTransport::open() {
         return false;
     }
 
-    // Clean up any existing connection
-    disconnect();
+    // Clean up any existing connection without clearing callbacks
+    internalCleanup();
 
     // Reset connection state
     {
@@ -180,6 +180,7 @@ bool WebSocketTransport::open() {
             } else {
                 // Timeout - connection didn't complete
                 m_lastError = "Connection timeout";
+                lock.unlock();
                 disconnect();
                 return false;
             }
@@ -221,7 +222,7 @@ void WebSocketTransport::onMessageReceived(
     m_messageCallback = std::move(callback);
 }
 
-void WebSocketTransport::disconnect() {
+void WebSocketTransport::internalCleanup() {
     // First, close the connection if it exists
     if (m_connection) {
         try {
@@ -242,14 +243,7 @@ void WebSocketTransport::disconnect() {
         m_io_thread.join();
     }
 
-    bool wasConnected = m_connected.exchange(false);
-
-    if (wasConnected) {
-        std::lock_guard<std::mutex> lock(m_callbackMutex);
-        if (m_connectionCallback) {
-            m_connectionCallback(false, "");
-        }
-    }
+    m_connected = false;
     
     // Reset connection state
     {
@@ -257,6 +251,18 @@ void WebSocketTransport::disconnect() {
         m_connectionCompleted = false;
         m_connectionResult = false;
         m_connectionError.clear();
+    }
+}
+
+void WebSocketTransport::disconnect() {
+    // Perform internal cleanup
+    internalCleanup();
+
+    // Clear callbacks to prevent use-after-free if client is destroyed
+    {
+        std::lock_guard<std::mutex> lock(m_callbackMutex);
+        m_connectionCallback = nullptr;
+        m_messageCallback = nullptr;
     }
 }
 

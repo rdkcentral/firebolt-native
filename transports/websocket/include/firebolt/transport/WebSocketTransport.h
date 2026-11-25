@@ -157,6 +157,9 @@ public:
     void disconnect() override;
 
 private:
+    // Internal cleanup without clearing callbacks (used by open() for reconnection)
+    void internalCleanup();
+
     // WebSocket++ client type
     typedef websocketpp::client<websocketpp::config::asio_client> client_t;
 
