@@ -18,9 +18,6 @@ target_include_directories(firebolt-core-transport PUBLIC
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
     $<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}/include>
     $<INSTALL_INTERFACE:include>
-)
-
-target_include_directories(firebolt-core-transport PRIVATE
     ${WebSocketPP_INCLUDE_DIRS}
     ${Asio_INCLUDE_DIRS}
 )
@@ -29,7 +26,8 @@ target_include_directories(firebolt-core-transport PRIVATE
 target_compile_features(firebolt-core-transport PUBLIC cxx_std_17)
 
 # Define ASIO_STANDALONE and WEBSOCKETPP_STANDALONE_ASIO for standalone Asio
-target_compile_definitions(firebolt-core-transport PRIVATE 
+# These must be PUBLIC because the public header includes asio.hpp and websocketpp headers
+target_compile_definitions(firebolt-core-transport PUBLIC 
     ASIO_STANDALONE
     WEBSOCKETPP_STANDALONE_ASIO
 )
@@ -48,12 +46,6 @@ if(BUILD_TESTING)
 
     target_include_directories(test_websocket_transport PRIVATE
         ${CMAKE_SOURCE_DIR}/include
-    )
-
-    # Define standalone Asio for test compilation
-    target_compile_definitions(test_websocket_transport PRIVATE
-        ASIO_STANDALONE
-        WEBSOCKETPP_STANDALONE_ASIO
     )
 
     add_test(NAME test_websocket_transport COMMAND test_websocket_transport)

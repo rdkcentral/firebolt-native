@@ -15,6 +15,13 @@ set(CMAKE_INCLUDE_PATH "/usr/local/include" ${CMAKE_INCLUDE_PATH})
 
 # Find Protobuf
 find_package(Protobuf REQUIRED HINTS /usr/local)
+if(NOT Protobuf_FOUND)
+    set(_firebolt_saved_module_path "${CMAKE_MODULE_PATH}")
+    list(REMOVE_ITEM CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake")
+    find_package(Protobuf REQUIRED MODULE)
+    set(CMAKE_MODULE_PATH "${_firebolt_saved_module_path}")
+    unset(_firebolt_saved_module_path)
+endif()
 
 # Find abseil (required for Protobuf 7.x, may be provided by build system)
 find_package(absl QUIET)

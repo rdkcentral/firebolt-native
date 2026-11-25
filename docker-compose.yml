@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   # Build service for websocket transport implementation
   websocket-build:
@@ -27,7 +25,8 @@ services:
     profiles:
       - websocket
     depends_on:
-      - websocket-build
+      websocket-build:
+        condition: service_completed_successfully
 
   # Build service for eyil protocol implementation
   eyil-build:
@@ -42,7 +41,8 @@ services:
     working_dir: /workspace
     environment:
       - EYIL_GATEWAY_DIR=/workspace/eyil-secure-gateway
-    command: /workspace/firebolt-native/build-docker.sh
+      - FIREBOLT_NATIVE_DIR=/workspace
+    command: /workspace/build-docker.sh
     profiles:
       - eyil
 

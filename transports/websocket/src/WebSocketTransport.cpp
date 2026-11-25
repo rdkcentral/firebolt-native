@@ -60,11 +60,36 @@ bool WebSocketTransport::open() {
         return false;
     }
 
+    // Clean up any existing connection
+    disconnect();
+
+    // Reset connection state
+    {
+        std::lock_guard<std::mutex> lock(m_connectionMutex);
+        m_connectionCompleted = false;
+        m_connectionResult = false;
+        m_connectionError.clear();
+    }
+
     try {
+        // Restart io_context only after the previous I/O worker has been joined
+        if (!m_io_thread.joinable()) {
+            m_io_service->restart();
+        }
+
         // Set up handlers
         m_client->set_open_handler([this](websocketpp::connection_hdl hdl) {
             m_connected = true;
-            std::lock_guard<std::mutex> lock(m_callbackMutex);
+            std::string errorInfo;
+            {
+                std::lock_guard<std::mutex> lock(m_connectionMutex);
+                m_connectionCompleted = true;
+                m_connectionResult = true;
+                m_connectionError.clear();
+            }
+            m_connectionCV.notify_one();
+            
+            std::lock_guard<std::mutex> callbackLock(m_callbackMutex);
             if (m_connectionCallback) {
                 m_connectionCallback(true, "");
             }
@@ -72,17 +97,47 @@ bool WebSocketTransport::open() {
 
         m_client->set_close_handler([this](websocketpp::connection_hdl hdl) {
             m_connected = false;
-            std::lock_guard<std::mutex> lock(m_callbackMutex);
+            std::string errorInfo = "Connection closed";
+            {
+                std::lock_guard<std::mutex> lock(m_connectionMutex);
+                if (!m_connectionCompleted) {
+                    m_connectionCompleted = true;
+                    m_connectionResult = false;
+                    m_connectionError = errorInfo;
+                }
+            }
+            m_connectionCV.notify_one();
+            
+            std::lock_guard<std::mutex> callbackLock(m_callbackMutex);
             if (m_connectionCallback) {
-                m_connectionCallback(false, "Connection closed");
+                m_connectionCallback(false, errorInfo);
             }
         });
 
         m_client->set_fail_handler([this](websocketpp::connection_hdl hdl) {
             m_connected = false;
-            std::lock_guard<std::mutex> lock(m_callbackMutex);
+            std::string errorInfo;
+            
+            // Extract actual error from connection handle
+            auto con = m_client->get_con_from_hdl(hdl);
+            if (con) {
+                errorInfo = con->get_ec().message();
+            } else {
+                errorInfo = "Connection failed";
+            }
+            
+            {
+                std::lock_guard<std::mutex> lock(m_connectionMutex);
+                m_connectionCompleted = true;
+                m_connectionResult = false;
+                m_connectionError = errorInfo;
+                m_lastError = errorInfo;
+            }
+            m_connectionCV.notify_one();
+            
+            std::lock_guard<std::mutex> callbackLock(m_callbackMutex);
             if (m_connectionCallback) {
-                m_connectionCallback(false, m_lastError);
+                m_connectionCallback(false, errorInfo);
             }
         });
 
@@ -107,18 +162,31 @@ bool WebSocketTransport::open() {
 
         m_connection = con;
 
-        // Connect (blocking)
-        m_client->connect(con);
-
         // Start io_context in background thread
         m_work = std::make_unique<asio::io_context::work>(*m_io_service);
         m_io_thread = std::thread([this]() {
             m_io_service->run();
         });
 
-        return true;
+        // Connect (asynchronous)
+        m_client->connect(con);
+
+        // Wait for connection result with timeout (30 seconds)
+        {
+            std::unique_lock<std::mutex> lock(m_connectionMutex);
+            if (m_connectionCV.wait_for(lock, std::chrono::seconds(30), 
+                [this] { return m_connectionCompleted; })) {
+                return m_connectionResult;
+            } else {
+                // Timeout - connection didn't complete
+                m_lastError = "Connection timeout";
+                disconnect();
+                return false;
+            }
+        }
     } catch (const std::exception& e) {
         m_lastError = std::string("Exception during connect: ") + e.what();
+        disconnect();
         return false;
     }
 }
@@ -154,6 +222,7 @@ void WebSocketTransport::onMessageReceived(
 }
 
 void WebSocketTransport::disconnect() {
+    // First, close the connection if it exists
     if (m_connection) {
         try {
             m_client->close(m_connection, websocketpp::close::status::normal, "Closing");
@@ -163,11 +232,12 @@ void WebSocketTransport::disconnect() {
         m_connection.reset();
     }
 
-    // Stop io_service
+    // Stop io_service by releasing work guard
     if (m_work) {
         m_work.reset();
     }
     
+    // Join the io_thread if it's joinable
     if (m_io_thread.joinable()) {
         m_io_thread.join();
     }
@@ -179,6 +249,14 @@ void WebSocketTransport::disconnect() {
         if (m_connectionCallback) {
             m_connectionCallback(false, "");
         }
+    }
+    
+    // Reset connection state
+    {
+        std::lock_guard<std::mutex> lock(m_connectionMutex);
+        m_connectionCompleted = false;
+        m_connectionResult = false;
+        m_connectionError.clear();
     }
 }
 

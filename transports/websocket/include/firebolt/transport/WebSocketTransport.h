@@ -16,7 +16,11 @@
  * limitations under the License.
  */
 
-// Use standalone Asio (must be defined before any websocketpp includes)
+// Use standalone Asio (must be defined before any websocketpp or asio includes)
+#ifndef ASIO_STANDALONE
+#define ASIO_STANDALONE
+#endif
+
 #ifndef WEBSOCKETPP_STANDALONE_ASIO
 #define WEBSOCKETPP_STANDALONE_ASIO
 #endif
@@ -31,6 +35,7 @@
 #include <mutex>
 #include <memory>
 #include <thread>
+#include <condition_variable>
 
 #include <websocketpp/config/asio_client.hpp>
 #include <websocketpp/client.hpp>
@@ -175,6 +180,13 @@ private:
 
     // Mutex protecting callback assignment
     mutable std::mutex m_callbackMutex;
+
+    // Mutex and condition variable for connection synchronization
+    mutable std::mutex m_connectionMutex;
+    std::condition_variable m_connectionCV;
+    bool m_connectionCompleted = false;
+    bool m_connectionResult = false;
+    std::string m_connectionError;
 
     // Callbacks
     std::function<void(bool, const std::string&)> m_connectionCallback;

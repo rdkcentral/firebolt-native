@@ -70,6 +70,7 @@ void startServer(int port) {
     g_server->init_asio();
     g_server->set_reuse_addr(true);
     g_server->listen(port);
+    g_server->start_accept();
 
     std::cout << "Mock WebSocket server started on port " << port << std::endl;
     std::cout << "WebSocket endpoint: ws://localhost:" << port << "/" << std::endl;
